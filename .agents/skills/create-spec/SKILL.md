@@ -1,4 +1,5 @@
 ---
+name: create-spec
 description: Create a spec file for the next Spendly feature
 argument-hint: "Step number and feature name e.g. 2 registration"
 allowed-tools: Read, Write, Glob
@@ -92,6 +93,6 @@ Title: <feature_title>
 
 Then tell the user:
 "Review the spec at .agents/specs/<step_number>-<feature_slug>.md
-then enter Plan Mode with Shift+Tab twice to begin implementation."
+then enter Plan Mode to begin implementation."
 
 Do not print the full spec in chat unless explicitly asked.

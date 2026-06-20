@@ -1,7 +1,12 @@
-from flask import Flask, render_template
-from database.db import init_db, seed_db
+import sqlite3
+
+from flask import Flask, flash, redirect, render_template, request, url_for
+from werkzeug.security import generate_password_hash
+
+from database.db import create_user, get_user_by_email, init_db, seed_db
 
 app = Flask(__name__)
+app.secret_key = "dev-secret-change-in-prod"
 
 with app.app_context():
     init_db()
@@ -16,9 +21,40 @@ def landing():
     return render_template("landing.html")
 
 
-@app.route("/register")
+@app.route("/register", methods=["GET", "POST"])
 def register():
-    return render_template("register.html")
+    if request.method == "GET":
+        return render_template("register.html")
+
+    # --- POST: process form submission ---
+    name = request.form.get("name", "").strip()
+    email = request.form.get("email", "").strip()
+    password = request.form.get("password", "").strip()
+    confirm_password = request.form.get("confirm_password", "").strip()
+
+    def _form_error(message):
+        """Re-render the form preserving name and email, but never password."""
+        return render_template("register.html", error=message, name=name, email=email)
+
+    # Server-side validation
+    if not name or not email or not password or not confirm_password:
+        return _form_error("All fields are required.")
+
+    if len(password) < 8:
+        return _form_error("Password must be at least 8 characters.")
+
+    if password != confirm_password:
+        return _form_error("Passwords do not match.")
+
+    # Hash password and persist
+    password_hash = generate_password_hash(password)
+    try:
+        create_user(name, email, password_hash)
+    except sqlite3.IntegrityError:
+        return _form_error("An account with that email already exists.")
+
+    flash("Account created! Please sign in.")
+    return redirect(url_for("login"))
 
 
 @app.route("/login")
