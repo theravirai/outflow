@@ -18,6 +18,8 @@ with app.app_context():
 
 @app.route("/")
 def landing():
+    # if session.get("user_id"):
+    #     return redirect(url_for("profile"))
     return render_template("landing.html")
 
 
@@ -74,6 +76,7 @@ def login():
         return render_template("login.html", error="Invalid email or password.")
 
     session["user_id"] = user["id"]
+    session["user_name"] = user["name"]
     return redirect(url_for("profile"))
 
 
@@ -99,7 +102,45 @@ def logout():
 
 @app.route("/profile")
 def profile():
-    return "Profile page — coming in Step 4"
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    # Hardcoded data for Step 4 profile design isolation
+    user_info = {
+        "name": "Jane Doe",
+        "email": "jane.doe@example.com",
+        "member_since": "June 2026",
+        "initials": "JD"
+    }
+
+    summary_stats = {
+        "total_spent": 1240.00,
+        "transaction_count": 15,
+        "top_category": "Food"
+    }
+
+    recent_expenses = [
+        {"date": "2026-06-24", "description": "Weekly Grocery Shopping", "category": "Food", "amount": 85.50},
+        {"date": "2026-06-23", "description": "Monthly Train Pass", "category": "Transport", "amount": 49.00},
+        {"date": "2026-06-20", "description": "Electricity Bill", "category": "Utilities", "amount": 112.00},
+        {"date": "2026-06-18", "description": "Dinner with friends", "category": "Food", "amount": 64.20},
+        {"date": "2026-06-15", "description": "New Wireless Headphones", "category": "Shopping", "amount": 129.99}
+    ]
+
+    category_breakdown = [
+        {"category": "Food", "amount": 350.20, "percentage": 28, "class": "food"},
+        {"category": "Utilities", "amount": 450.00, "percentage": 36, "class": "utilities"},
+        {"category": "Shopping", "amount": 329.99, "percentage": 27, "class": "shopping"},
+        {"category": "Transport", "amount": 109.81, "percentage": 9, "class": "transport"}
+    ]
+
+    return render_template(
+        "profile.html",
+        user_info=user_info,
+        summary_stats=summary_stats,
+        recent_expenses=recent_expenses,
+        category_breakdown=category_breakdown
+    )
 
 
 @app.route("/expenses/add")

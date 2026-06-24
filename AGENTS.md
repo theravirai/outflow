@@ -1,57 +1,81 @@
-# Spendly - Personal Finance Tracker
+# CLAUDE.md
 
-## Project Overview
-Spendly is a web-based personal finance and expense tracking application built using **Python** and **Flask**. The project serves as an educational codebase (indicated by instructions like "students will write this file") aimed at teaching web development concepts. 
+## Project overview
 
-### Architecture & Tech Stack
-- **Backend:** Python, Flask, Werkzeug.
-- **Database:** SQLite (managed via `database/db.py`).
-- **Frontend:** Vanilla HTML5, CSS3, and JavaScript. Jinja2 is used for server-side template rendering.
-- **Testing:** Pytest and pytest-flask.
-- **Design:** No heavy frontend frameworks or build steps are used. CSS variables and responsive flex/grid layouts are written in standard CSS.
+Spendly is a lightweight personal expense tracker built with Flask and SQLite.
 
-## Directory Structure
-- `app.py`: The main entry point for the Flask application containing the route definitions.
-- `database/`: Contains database configuration and setup scripts (`db.py`).
-- `templates/`: Jinja2 HTML templates (`base.html`, `landing.html`, `login.html`, `register.html`, etc.).
-- `static/`: Static assets including CSS (`style.css`, `landing.css`) and JavaScript (`main.js`).
-- `requirements.txt`: Python package dependencies.
-- `venv/`: Standard location for the Python virtual environment.
+---
 
-## Building and Running
+## Architecture
+```
+spendly/
+├── app.py              # All routes — single file, no blueprints
+├── database/
+│   └── db.py           # SQLite helpers: get_db(), init_db(), seed_db()
+├── templates/
+│   ├── base.html       # Shared layout — all templates must extend this
+│   └── *.html          # One template per page
+├── static/
+│   ├── css/
+│   │   ├── style.css       # Global styles
+│   │   └── landing.css     # Landing-page-only styles
+│   └── js/
+│       └── main.js         # Vanilla JS only
+└── requirements.txt
+```
 
-### Setup
-1. Create a virtual environment:
-   ```bash
-   python -m venv venv
-   ```
-2. Activate the virtual environment:
-   - macOS/Linux: `source venv/bin/activate`
-   - Windows: `venv\Scripts\activate`
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+**Where things belong:**
+- New routes → `app.py` only, no blueprints
+- DB logic → `database/db.py` only, never inline in routes
+- New pages → new `.html` file extending `base.html`
+- Page-specific styles → new `.css` file, not inline `<style>` tags
 
-### Running the App
-Start the Flask development server:
+---
+
+## Code style
+
+- Python: PEP 8, snake_case for all variables and functions
+- Templates: Jinja2 with `url_for()` for every internal link — never hardcode URLs
+- Route functions: one responsibility only — fetch data, render template, done
+- DB queries: always use parameterized queries (`?` placeholders) — never f-strings in SQL
+- Error handling: use `abort()` for HTTP errors, not bare `return "error string"`
+
+---
+
+## Tech constraints
+
+- **Flask only** — no FastAPI, no Django, no other web frameworks
+- **SQLite only** — no PostgreSQL, no SQLAlchemy ORM, no external DB
+- **Vanilla JS only** — no React, no jQuery, no npm packages
+- **No new pip packages** — work within `requirements.txt` as-is unless explicitly told otherwise
+- Python 3.10+ assumed — f-strings and `match` statements are fine
+
+---
+
+## Commands
 ```bash
+# Setup
+python -m venv venv
+source venv/bin/activate          # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+# Run dev server (port 5001)
 python app.py
-```
-The app will run locally in debug mode on port **5001** (e.g., `http://127.0.0.1:5001`).
 
-### Testing
-Run the test suite using pytest:
-```bash
+# Run all tests
 pytest
+
+# Run a specific test file
+pytest tests/test_foo.py
+
+# Run a specific test by name
+pytest -k "test_name"
+
+# Run tests with output visible
+pytest -s
 ```
 
-## Development Conventions
-- **Educational Codebase:** Be aware that some files and routes contain placeholder comments or stubs (e.g., "coming in Step 3", "Students will write this file in Step 1"). Ensure changes align with the intended learning path or current phase of the project unless instructed otherwise.
-- **Vanilla Frontend:** Keep styling in pure CSS without preprocessors. Use Vanilla JavaScript for DOM manipulation (like the video modal) without libraries like jQuery or React.
-- **Templating:** Use Jinja2 template inheritance. New pages should extend `base.html` and place content within the `{% block content %}` block.
-- **Database:** Use standard SQLite3 via the standard library for data persistence. Ensure raw SQL or simple abstractions are maintained unless an ORM (like SQLAlchemy) is explicitly introduced into the curriculum.
-
+---
 
 ## Implemented vs stub routes
 
@@ -80,3 +104,4 @@ pytest
 - **`database/db.py` is currently empty** — do not assume helpers exist until the step that implements them
 - **FK enforcement is manual** — SQLite foreign keys are off by default; `get_db()` must run `PRAGMA foreign_keys = ON` on every connection
 - The app runs on **port 5001**, not the Flask default 5000 — don't change this
+- We are using euro as a currency everywhere.
