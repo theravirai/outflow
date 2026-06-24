@@ -4,6 +4,7 @@ from flask import Flask, flash, redirect, render_template, request, session, url
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from database.db import create_user, get_user_by_email, init_db, seed_db
+from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown
 
 app = Flask(__name__)
 app.secret_key = "dev-secret-change-in-prod"
@@ -102,37 +103,18 @@ def logout():
 
 @app.route("/profile")
 def profile():
-    if not session.get("user_id"):
+    user_id = session.get("user_id")
+    if not user_id:
         return redirect(url_for("login"))
 
-    # Hardcoded data for Step 4 profile design isolation
-    user_info = {
-        "name": "Jane Doe",
-        "email": "jane.doe@example.com",
-        "member_since": "June 2026",
-        "initials": "JD"
-    }
+    user_info = get_user_by_id(user_id)
 
-    summary_stats = {
-        "total_spent": 1240.00,
-        "transaction_count": 15,
-        "top_category": "Food"
-    }
+    summary_stats = get_summary_stats(user_id)
 
-    recent_expenses = [
-        {"date": "2026-06-24", "description": "Weekly Grocery Shopping", "category": "Food", "amount": 85.50},
-        {"date": "2026-06-23", "description": "Monthly Train Pass", "category": "Transport", "amount": 49.00},
-        {"date": "2026-06-20", "description": "Electricity Bill", "category": "Utilities", "amount": 112.00},
-        {"date": "2026-06-18", "description": "Dinner with friends", "category": "Food", "amount": 64.20},
-        {"date": "2026-06-15", "description": "New Wireless Headphones", "category": "Shopping", "amount": 129.99}
-    ]
+    recent_expenses = get_recent_transactions(user_id, limit=10)
 
-    category_breakdown = [
-        {"category": "Food", "amount": 350.20, "percentage": 28, "class": "food"},
-        {"category": "Utilities", "amount": 450.00, "percentage": 36, "class": "utilities"},
-        {"category": "Shopping", "amount": 329.99, "percentage": 27, "class": "shopping"},
-        {"category": "Transport", "amount": 109.81, "percentage": 9, "class": "transport"}
-    ]
+    user_id = session.get("user_id")
+    category_breakdown = get_category_breakdown(user_id)
 
     return render_template(
         "profile.html",
