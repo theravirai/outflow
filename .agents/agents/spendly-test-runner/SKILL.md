@@ -133,14 +133,14 @@ Always check test output for signals of these common Spendly mistakes:
 - `return "error string"` in routes → must use `abort()`
 - App running on port 5000 → must be 5001
 - Any JS framework imports → only vanilla JS allowed
-- `database/db.py` helpers assumed to exist before they are implemented → check step status in CLAUDE.md
+- `database/db.py` helpers assumed to exist before they are implemented → check step status in AGENTS.md.md
 
 ---
 
 ## Escalation Policy
 
 - If tests cannot run due to import errors or missing dependencies, diagnose and report — do NOT attempt to install new packages
-- If a test file exercises a stub route that is not yet implemented per CLAUDE.md, flag this clearly: "This test targets a stub route — implementation must precede testing"
+- If a test file exercises a stub route that is not yet implemented per AGENTS.md.md, flag this clearly: "This test targets a stub route — implementation must precede testing"
 - If results are ambiguous, re-run with `pytest -s` for full output before concluding
 
 ---

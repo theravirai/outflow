@@ -1,4 +1,6 @@
 import sqlite3
+from datetime import date, timedelta
+import calendar
 
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -107,21 +109,66 @@ def profile():
     if not user_id:
         return redirect(url_for("login"))
 
+    # Extract query parameters
+    preset = request.args.get("preset")
+    start_date_str = request.args.get("start_date", "").strip()
+    end_date_str = request.args.get("end_date", "").strip()
+
+    # Determine preset if not explicitly provided but dates are
+    if not preset:
+        if start_date_str or end_date_str:
+            preset = "custom"
+        else:
+            preset = "all"
+
+    today = date.today()
+    start_date = None
+    end_date = None
+
+    if preset == "7d":
+        start_date = today - timedelta(days=6)
+        end_date = today
+    elif preset == "30d":
+        start_date = today - timedelta(days=29)
+        end_date = today
+    elif preset == "this-month":
+        start_date = today.replace(day=1)
+        _, last_day = calendar.monthrange(today.year, today.month)
+        end_date = today.replace(day=last_day)
+    elif preset == "custom":
+        if start_date_str:
+            try:
+                start_date = date.fromisoformat(start_date_str)
+            except ValueError:
+                start_date = None
+        if end_date_str:
+            try:
+                end_date = date.fromisoformat(end_date_str)
+            except ValueError:
+                end_date = None
+
+    # Convert date objects to ISO string representation for query execution
+    start_date_query = start_date.isoformat() if start_date else None
+    end_date_query = end_date.isoformat() if end_date else None
+
+    # If preset is custom and both dates are empty, treat as preset = all
+    if preset == "custom" and not start_date_query and not end_date_query:
+        preset = "all"
+
     user_info = get_user_by_id(user_id)
-
-    summary_stats = get_summary_stats(user_id)
-
-    recent_expenses = get_recent_transactions(user_id, limit=10)
-
-    user_id = session.get("user_id")
-    category_breakdown = get_category_breakdown(user_id)
+    summary_stats = get_summary_stats(user_id, start_date=start_date_query, end_date=end_date_query)
+    recent_expenses = get_recent_transactions(user_id, limit=10, start_date=start_date_query, end_date=end_date_query)
+    category_breakdown = get_category_breakdown(user_id, start_date=start_date_query, end_date=end_date_query)
 
     return render_template(
         "profile.html",
         user_info=user_info,
         summary_stats=summary_stats,
         recent_expenses=recent_expenses,
-        category_breakdown=category_breakdown
+        category_breakdown=category_breakdown,
+        preset=preset,
+        start_date=start_date_query,
+        end_date=end_date_query
     )
 
 

@@ -30,24 +30,56 @@
                 Category Breakdown
             </h3>
             <div class="breakdown-list">
-                {% for item in category_breakdown %}
-                <div class="breakdown-item">
-                    <div class="breakdown-info">
-                        <span class="breakdown-name">{{ item.category }}</span>
-                        <span class="breakdown-amount tabular-nums">€{{ "%.2f"|format(item.amount) }}</span>
+                {% if category_breakdown %}
+                    {% for item in category_breakdown %}
+                    <div class="breakdown-item">
+                        <div class="breakdown-info">
+                            <span class="breakdown-name">{{ item.category }}</span>
+                            <span class="breakdown-amount tabular-nums">€{{ "%.2f"|format(item.amount) }}</span>
+                        </div>
+                        <div class="progress-track">
+                            <div class="progress-fill bar-{{ item.class }}" style="width: {{ item.percentage }}%;"></div>
+                        </div>
+                        <span class="breakdown-percentage">{{ item.percentage }}% of total</span>
                     </div>
-                    <div class="progress-track">
-                        <div class="progress-fill bar-{{ item.class }}" style="width: {{ item.percentage }}%;"></div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <p class="empty-message">No expenses in this range</p>
                     </div>
-                    <span class="breakdown-percentage">{{ item.percentage }}% of total</span>
-                </div>
-                {% endfor %}
+                {% endif %}
             </div>
         </div>
     </aside>
 
     <!-- Main Section: Stats and Transactions -->
     <section class="profile-main">
+        <!-- Date Filter Card -->
+        <div class="profile-card filter-card">
+            <div class="filter-presets">
+                <a href="{{ url_for('profile', preset='7d') }}" class="preset-btn{% if preset == '7d' %} active{% endif %}">Last 7 Days</a>
+                <a href="{{ url_for('profile', preset='30d') }}" class="preset-btn{% if preset == '30d' %} active{% endif %}">Last 30 Days</a>
+                <a href="{{ url_for('profile', preset='this-month') }}" class="preset-btn{% if preset == 'this-month' %} active{% endif %}">This Month</a>
+                <a href="{{ url_for('profile', preset='all') }}" class="preset-btn{% if preset == 'all' %} active{% endif %}">All Time</a>
+            </div>
+            
+            <form method="GET" action="{{ url_for('profile') }}" class="filter-form">
+                <input type="hidden" name="preset" value="custom">
+                <div class="filter-group">
+                    <label for="start_date">Start Date</label>
+                    <input type="date" id="start_date" name="start_date" value="{{ start_date or '' }}">
+                </div>
+                <div class="filter-group">
+                    <label for="end_date">End Date</label>
+                    <input type="date" id="end_date" name="end_date" value="{{ end_date or '' }}">
+                </div>
+                <div class="filter-actions">
+                    <button type="submit" class="btn btn-primary">Apply</button>
+                    <a href="{{ url_for('profile') }}" class="btn btn-secondary">Clear</a>
+                </div>
+            </form>
+        </div>
+
         <!-- Summary Stats Grid -->
         <div class="stats-grid">
             <div class="profile-card stat-card">
@@ -98,16 +130,26 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for expense in recent_expenses %}
-                        <tr>
-                            <td class="text-muted text-sm">{{ expense.date }}</td>
-                            <td class="font-medium">{{ expense.description }}</td>
-                            <td>
-                                <span class="badge badge-{{ expense.category|lower }}">{{ expense.category }}</span>
-                            </td>
-                            <td class="text-right font-semibold tabular-nums">€{{ "%.2f"|format(expense.amount) }}</td>
-                        </tr>
-                        {% endfor %}
+                        {% if recent_expenses %}
+                            {% for expense in recent_expenses %}
+                            <tr>
+                                <td class="text-muted text-sm">{{ expense.date }}</td>
+                                <td class="font-medium">{{ expense.description }}</td>
+                                <td>
+                                    <span class="badge badge-{{ expense.category|lower }}">{{ expense.category }}</span>
+                                </td>
+                                <td class="text-right font-semibold tabular-nums">€{{ "%.2f"|format(expense.amount) }}</td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="4" class="empty-table-cell">
+                                    <div class="empty-state">
+                                        <p class="empty-message">No transactions found in this range</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
                     </tbody>
                 </table>
             </div>

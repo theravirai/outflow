@@ -33,7 +33,7 @@ context:
 
 **spendly-security-reviewer** receives:
 - The combined diff from the pre-flight check
-- Spec file for context: `.claude/specs/$ARGUMENTS.md`
+- Spec file for context: `.agents/specs/$ARGUMENTS.md`
 - Source files to reference: `app.py` and 
   `database/` directory
 - Instruction: Review only the changed code for 
@@ -42,7 +42,7 @@ context:
 
 **spendly-quality-reviewer** receives:
 - The combined diff from the pre-flight check
-- Spec file for context: `.claude/specs/$ARGUMENTS.md`
+- Spec file for context: `.agents/specs/$ARGUMENTS.md`
 - Source files to reference: `app.py`, `database/` 
   directory, and `templates/` directory
 - Instruction: Review only the changed code for quality, 
@@ -103,7 +103,7 @@ approves.
   both must run in parallel
 - Do NOT skip the pre-flight diff check
 - Do NOT proceed if the spec file at 
-  `.claude/specs/$ARGUMENTS.md` does not exist — 
+  `.agents/specs/$ARGUMENTS.md` does not exist — 
   report it and stop
 - If either subagent fails or returns no output, 
   report it and do not present a partial review 
