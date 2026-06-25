@@ -1,11 +1,12 @@
 import sqlite3
 from datetime import date, timedelta
 import calendar
+import math
 
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from database.db import create_user, get_user_by_email, init_db, seed_db
+from database.db import create_expense, create_user, get_user_by_email, init_db, seed_db
 from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown
 
 app = Flask(__name__)
@@ -172,9 +173,70 @@ def profile():
     )
 
 
-@app.route("/expenses/add")
+@app.route("/expenses/add", methods=["GET", "POST"])
 def add_expense():
-    return "Add expense — coming in Step 7"
+    user_id = session.get("user_id")
+    if not user_id:
+        return redirect(url_for("login"))
+
+    if request.method == "GET":
+        default_date = date.today().isoformat()
+        return render_template("add_expense.html", date=default_date)
+
+    # POST method: process submission
+    amount_str = request.form.get("amount", "").strip()
+    category = request.form.get("category", "").strip()
+    date_str = request.form.get("date", "").strip()
+    description = request.form.get("description", "").strip()
+
+    # Validation checks
+    error = None
+
+    amount = None
+    if not amount_str:
+        error = "Amount is required."
+    else:
+        try:
+            amount = float(amount_str)
+            if not math.isfinite(amount) or amount <= 0:
+                error = "Amount must be greater than 0."
+        except ValueError:
+            error = "Amount must be a valid number."
+
+    valid_categories = ["Food", "Transport", "Bills", "Health", "Entertainment", "Shopping", "Other"]
+    if not error:
+        if not category:
+            error = "Category is required."
+        elif category not in valid_categories:
+            error = "Invalid category selected."
+
+    if not error:
+        if not date_str:
+            error = "Date is required."
+        else:
+            try:
+                date.fromisoformat(date_str)
+            except ValueError:
+                error = "Date must be in YYYY-MM-DD format."
+
+    if not error:
+        if len(description) > 200:
+            error = "Description must not exceed 200 characters."
+
+    if error:
+        return render_template(
+            "add_expense.html",
+            error=error,
+            amount=amount_str,
+            category=category,
+            date=date_str,
+            description=description
+        )
+
+    # Success: Insert and Redirect
+    create_expense(user_id, amount, category, date_str, description)
+    flash("Expense added successfully!")
+    return redirect(url_for("profile"))
 
 
 @app.route("/expenses/<int:id>/edit")

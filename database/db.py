@@ -101,3 +101,17 @@ def create_user(name, email, password_hash):
     user_id = cur.lastrowid
     conn.close()
     return user_id
+
+
+def create_expense(user_id, amount, category, date, description):
+    """Inserts a new expense into the database and returns the new row ID."""
+    conn = get_db()
+    with conn:
+        cur = conn.execute(
+            "INSERT INTO expenses (user_id, amount, category, date, description) VALUES (?, ?, ?, ?, ?)",
+            (user_id, amount, category, date, description)
+        )
+    expense_id = cur.lastrowid
+    conn.close()
+    return expense_id
+

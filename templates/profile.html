@@ -54,6 +54,17 @@
 
     <!-- Main Section: Stats and Transactions -->
     <section class="profile-main">
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            {% for message in messages %}
+              <div class="flash-success">
+                  <i data-lucide="check-circle"></i>
+                  <span>{{ message }}</span>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
         <!-- Date Filter Card -->
         <div class="profile-card filter-card">
             <div class="filter-presets">
@@ -118,6 +129,9 @@
                     <i data-lucide="history" class="title-icon"></i>
                     Recent Expenses
                 </h3>
+                <a href="{{ url_for('add_expense') }}" class="btn-add-expense">
+                    <i data-lucide="plus"></i> Add Expense
+                </a>
             </div>
             <div class="table-responsive">
                 <table class="transactions-table">

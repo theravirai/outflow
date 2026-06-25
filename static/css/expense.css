@@ -1,0 +1,169 @@
+/* Page-specific styles for Add/Edit Expense */
+
+.expense-section {
+    min-height: calc(100vh - 60px - 100px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 2rem;
+}
+
+.expense-container {
+    width: 100%;
+    max-width: 480px;
+}
+
+.expense-header {
+    margin-bottom: 2rem;
+}
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--accent);
+    margin-bottom: 1rem;
+    transition: color 0.2s;
+}
+
+.back-link:hover {
+    color: var(--ink);
+}
+
+.back-link svg {
+    width: 16px;
+    height: 16px;
+    stroke-width: 2.25;
+}
+
+.expense-title {
+    font-family: var(--font-display);
+    font-size: 2.25rem;
+    color: var(--ink);
+    line-height: 1.2;
+    margin-bottom: 0.5rem;
+}
+
+.expense-subtitle {
+    font-size: 0.95rem;
+    color: var(--ink-muted);
+}
+
+.expense-card {
+    background: var(--paper-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 2rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+.error-banner {
+    background: var(--danger-light);
+    color: var(--danger);
+    border: 1px solid var(--danger-border);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.error-banner svg {
+    width: 16px;
+    height: 16px;
+    stroke-width: 2.25;
+    flex-shrink: 0;
+}
+
+.amount-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.currency-symbol {
+    position: absolute;
+    left: 1rem;
+    color: var(--ink-muted);
+    font-weight: 500;
+    font-size: 1.1rem;
+    pointer-events: none;
+}
+
+.amount-input-wrapper .form-input {
+    padding-left: 2rem;
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.select-wrapper {
+    position: relative;
+}
+
+.select-wrapper select.form-input {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b6b6b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 16px;
+    padding-right: 2.5rem;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 1.25rem;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-soft);
+}
+
+.btn-cancel {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--ink-muted);
+    transition: color 0.2s;
+    cursor: pointer;
+}
+
+.btn-cancel:hover {
+    color: var(--ink);
+}
+
+.expense-card .btn-submit {
+    margin-top: 0;
+    width: auto;
+    padding: 0.65rem 1.5rem;
+}
+
+@media (max-width: 600px) {
+    .expense-section {
+        padding: 1.5rem 1rem;
+    }
+    
+    .expense-card {
+        padding: 1.5rem;
+    }
+    
+    .form-actions {
+        flex-direction: column-reverse;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+    
+    .btn-cancel {
+        text-align: center;
+        padding: 0.65rem;
+    }
+    
+    .expense-card .btn-submit {
+        width: 100%;
+    }
+}
