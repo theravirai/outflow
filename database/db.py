@@ -1,8 +1,14 @@
 import sqlite3
-from datetime import datetime, timedelta
+import uuid
+import secrets
+import logging
+import time
+from datetime import datetime, timedelta, date
 from werkzeug.security import generate_password_hash
 
 DB_PATH = "expense_tracker.db"
+
+_LAST_CLEANUP_TIME = 0
 
 def get_db():
     """Returns a SQLite connection with row_factory and foreign keys enabled."""
@@ -150,6 +156,12 @@ def delete_expense(expense_id):
 
 def cleanup_old_demo_users():
     """Deletes temporary demo users and their expenses that are older than 24 hours."""
+    global _LAST_CLEANUP_TIME
+    now = time.time()
+    if now - _LAST_CLEANUP_TIME < 3600:  # Only cleanup once per hour at most
+        return
+    _LAST_CLEANUP_TIME = now
+
     conn = get_db()
     try:
         with conn:
@@ -164,108 +176,105 @@ def cleanup_old_demo_users():
                 conn.execute(f"DELETE FROM expenses WHERE user_id IN ({placeholders})", user_ids)
                 # Delete the users
                 conn.execute(f"DELETE FROM users WHERE id IN ({placeholders})", user_ids)
-    except Exception:
-        # Silently ignore errors to avoid blocking user flow
-        pass
+    except Exception as e:
+        logging.exception("Error during cleanup of old demo users")
     finally:
         conn.close()
 
 
 def create_demo_user():
     """Creates a temporary demo user and populates it with 90 days of realistic expense data."""
-    import uuid
-    from datetime import date
-    
     conn = get_db()
-    uid = uuid.uuid4().hex
-    email = f"demo_session_{uid}@outflow.com"
-    name = "Demo Mode"
-    # Random dummy password hash
-    password_hash = generate_password_hash("demo_mode_pass_123")
-    
-    with conn:
-        cur = conn.execute(
-            "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
-            (name, email, password_hash)
-        )
-        user_id = cur.lastrowid
+    try:
+        uid = uuid.uuid4().hex
+        email = f"demo_session_{uid}@outflow.com"
+        name = "Demo Mode"
+        # Cryptographically secure random password hash
+        password_hash = generate_password_hash(secrets.token_hex(16))
         
-        # Seed realistic relative expenses
-        today = date.today()
-        expenses = [
-            # Bills
-            (user_id, 850.00, "Bills", str(today - timedelta(days=5)), "Monthly Rent Payment"),
-            (user_id, 120.00, "Bills", str(today - timedelta(days=6)), "Electricity & Gas Bill"),
-            (user_id, 39.99, "Bills", str(today - timedelta(days=10)), "Fiber Internet Subscription"),
-            (user_id, 850.00, "Bills", str(today - timedelta(days=35)), "Monthly Rent Payment"),
-            (user_id, 115.00, "Bills", str(today - timedelta(days=36)), "Electricity & Gas Bill"),
-            (user_id, 39.99, "Bills", str(today - timedelta(days=40)), "Fiber Internet Subscription"),
-            (user_id, 850.00, "Bills", str(today - timedelta(days=65)), "Monthly Rent Payment"),
-            (user_id, 125.00, "Bills", str(today - timedelta(days=66)), "Electricity & Gas Bill"),
-            (user_id, 39.99, "Bills", str(today - timedelta(days=70)), "Fiber Internet Subscription"),
+        with conn:
+            cur = conn.execute(
+                "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
+                (name, email, password_hash)
+            )
+            user_id = cur.lastrowid
             
-            # Food - Groceries
-            (user_id, 74.50, "Food", str(today - timedelta(days=1)), "Groceries at Lidl"),
-            (user_id, 52.10, "Food", str(today - timedelta(days=4)), "Weekly groceries"),
-            (user_id, 82.30, "Food", str(today - timedelta(days=8)), "Lidl Supermarket"),
-            (user_id, 64.80, "Food", str(today - timedelta(days=12)), "Fresh vegetables and fruit"),
-            (user_id, 91.20, "Food", str(today - timedelta(days=18)), "Weekly food shopping"),
-            (user_id, 55.00, "Food", str(today - timedelta(days=22)), "Lidl"),
-            (user_id, 78.50, "Food", str(today - timedelta(days=29)), "Weekly groceries"),
-            (user_id, 83.40, "Food", str(today - timedelta(days=45)), "Food shopping"),
-            (user_id, 79.00, "Food", str(today - timedelta(days=60)), "Groceries"),
+            # Seed realistic relative expenses
+            today = date.today()
+            expenses = [
+                # Bills
+                (user_id, 850.00, "Bills", str(today - timedelta(days=5)), "Monthly Rent Payment"),
+                (user_id, 120.00, "Bills", str(today - timedelta(days=6)), "Electricity & Gas Bill"),
+                (user_id, 39.99, "Bills", str(today - timedelta(days=10)), "Fiber Internet Subscription"),
+                (user_id, 850.00, "Bills", str(today - timedelta(days=35)), "Monthly Rent Payment"),
+                (user_id, 115.00, "Bills", str(today - timedelta(days=36)), "Electricity & Gas Bill"),
+                (user_id, 39.99, "Bills", str(today - timedelta(days=40)), "Fiber Internet Subscription"),
+                (user_id, 850.00, "Bills", str(today - timedelta(days=65)), "Monthly Rent Payment"),
+                (user_id, 125.00, "Bills", str(today - timedelta(days=66)), "Electricity & Gas Bill"),
+                (user_id, 39.99, "Bills", str(today - timedelta(days=70)), "Fiber Internet Subscription"),
+                
+                # Food - Groceries
+                (user_id, 74.50, "Food", str(today - timedelta(days=1)), "Groceries at Lidl"),
+                (user_id, 52.10, "Food", str(today - timedelta(days=4)), "Weekly groceries"),
+                (user_id, 82.30, "Food", str(today - timedelta(days=8)), "Lidl Supermarket"),
+                (user_id, 64.80, "Food", str(today - timedelta(days=12)), "Fresh vegetables and fruit"),
+                (user_id, 91.20, "Food", str(today - timedelta(days=18)), "Weekly food shopping"),
+                (user_id, 55.00, "Food", str(today - timedelta(days=22)), "Lidl"),
+                (user_id, 78.50, "Food", str(today - timedelta(days=29)), "Weekly groceries"),
+                (user_id, 83.40, "Food", str(today - timedelta(days=45)), "Food shopping"),
+                (user_id, 79.00, "Food", str(today - timedelta(days=60)), "Groceries"),
+                
+                # Food - Dining out & Coffee
+                (user_id, 15.50, "Food", str(today - timedelta(days=2)), "Coffee & pastry"),
+                (user_id, 45.00, "Food", str(today - timedelta(days=7)), "Dinner with colleagues"),
+                (user_id, 28.00, "Food", str(today - timedelta(days=14)), "Sushi delivery"),
+                (user_id, 12.00, "Food", str(today - timedelta(days=25)), "Lunch box"),
+                (user_id, 42.50, "Food", str(today - timedelta(days=38)), "Italian restaurant"),
+                
+                # Transport
+                (user_id, 49.00, "Transport", str(today - timedelta(days=3)), "Monthly Public Transport Pass"),
+                (user_id, 22.50, "Transport", str(today - timedelta(days=9)), "Uber ride home"),
+                (user_id, 18.00, "Transport", str(today - timedelta(days=21)), "Taxi ride"),
+                (user_id, 49.00, "Transport", str(today - timedelta(days=33)), "Monthly Public Transport Pass"),
+                (user_id, 25.00, "Transport", str(today - timedelta(days=50)), "Train ticket"),
+                (user_id, 49.00, "Transport", str(today - timedelta(days=63)), "Monthly Public Transport Pass"),
+                
+                # Shopping
+                (user_id, 110.00, "Shopping", str(today - timedelta(days=12)), "Winter jacket"),
+                (user_id, 89.99, "Shopping", str(today - timedelta(days=19)), "Mechanical Keyboard"),
+                (user_id, 45.00, "Shopping", str(today - timedelta(days=42)), "Sneakers sale"),
+                (user_id, 24.50, "Shopping", str(today - timedelta(days=55)), "Novel books"),
+                
+                # Entertainment
+                (user_id, 24.00, "Entertainment", str(today - timedelta(days=2)), "Movie tickets for two"),
+                (user_id, 15.99, "Entertainment", str(today - timedelta(days=15)), "Netflix subscription"),
+                (user_id, 65.00, "Entertainment", str(today - timedelta(days=28)), "Live music concert ticket"),
+                (user_id, 24.00, "Entertainment", str(today - timedelta(days=32)), "Movie tickets"),
+                (user_id, 15.99, "Entertainment", str(today - timedelta(days=45)), "Netflix subscription"),
+                (user_id, 15.99, "Entertainment", str(today - timedelta(days=75)), "Netflix subscription"),
+                
+                # Healthcare
+                (user_id, 24.50, "Healthcare", str(today - timedelta(days=8)), "Cold medicine & vitamins"),
+                (user_id, 18.20, "Healthcare", str(today - timedelta(days=37)), "First aid kit"),
+                (user_id, 75.00, "Healthcare", str(today - timedelta(days=48)), "Dental checkup"),
+                
+                # Travel
+                (user_id, 180.00, "Travel", str(today - timedelta(days=22)), "Flight ticket to Amsterdam"),
+                (user_id, 140.00, "Travel", str(today - timedelta(days=21)), "Hotel stay in Amsterdam"),
+                (user_id, 65.00, "Food", str(today - timedelta(days=21)), "Traditional dinner in Amsterdam"),
+                
+                # Other
+                (user_id, 35.00, "Other", str(today - timedelta(days=15)), "Birthday gift for friend"),
+                (user_id, 40.00, "Other", str(today - timedelta(days=72)), "Housewarming gift")
+            ]
             
-            # Food - Dining out & Coffee
-            (user_id, 15.50, "Food", str(today - timedelta(days=2)), "Coffee & pastry"),
-            (user_id, 45.00, "Food", str(today - timedelta(days=7)), "Dinner with colleagues"),
-            (user_id, 28.00, "Food", str(today - timedelta(days=14)), "Sushi delivery"),
-            (user_id, 12.00, "Food", str(today - timedelta(days=25)), "Lunch box"),
-            (user_id, 42.50, "Food", str(today - timedelta(days=38)), "Italian restaurant"),
-            
-            # Transport
-            (user_id, 49.00, "Transport", str(today - timedelta(days=3)), "Monthly Public Transport Pass"),
-            (user_id, 22.50, "Transport", str(today - timedelta(days=9)), "Uber ride home"),
-            (user_id, 18.00, "Transport", str(today - timedelta(days=21)), "Taxi ride"),
-            (user_id, 49.00, "Transport", str(today - timedelta(days=33)), "Monthly Public Transport Pass"),
-            (user_id, 25.00, "Transport", str(today - timedelta(days=50)), "Train ticket"),
-            (user_id, 49.00, "Transport", str(today - timedelta(days=63)), "Monthly Public Transport Pass"),
-            
-            # Shopping
-            (user_id, 110.00, "Shopping", str(today - timedelta(days=12)), "Winter jacket"),
-            (user_id, 89.99, "Shopping", str(today - timedelta(days=19)), "Mechanical Keyboard"),
-            (user_id, 45.00, "Shopping", str(today - timedelta(days=42)), "Sneakers sale"),
-            (user_id, 24.50, "Shopping", str(today - timedelta(days=55)), "Novel books"),
-            
-            # Entertainment
-            (user_id, 24.00, "Entertainment", str(today - timedelta(days=2)), "Movie tickets for two"),
-            (user_id, 15.99, "Entertainment", str(today - timedelta(days=15)), "Netflix subscription"),
-            (user_id, 65.00, "Entertainment", str(today - timedelta(days=28)), "Live music concert ticket"),
-            (user_id, 24.00, "Entertainment", str(today - timedelta(days=32)), "Movie tickets"),
-            (user_id, 15.99, "Entertainment", str(today - timedelta(days=45)), "Netflix subscription"),
-            (user_id, 15.99, "Entertainment", str(today - timedelta(days=75)), "Netflix subscription"),
-            
-            # Healthcare
-            (user_id, 24.50, "Healthcare", str(today - timedelta(days=8)), "Cold medicine & vitamins"),
-            (user_id, 18.20, "Healthcare", str(today - timedelta(days=37)), "First aid kit"),
-            (user_id, 75.00, "Healthcare", str(today - timedelta(days=48)), "Dental checkup"),
-            
-            # Travel
-            (user_id, 180.00, "Travel", str(today - timedelta(days=22)), "Flight ticket to Amsterdam"),
-            (user_id, 140.00, "Travel", str(today - timedelta(days=21)), "Hotel stay in Amsterdam"),
-            (user_id, 65.00, "Food", str(today - timedelta(days=21)), "Traditional dinner in Amsterdam"),
-            
-            # Other
-            (user_id, 35.00, "Other", str(today - timedelta(days=15)), "Birthday gift for friend"),
-            (user_id, 40.00, "Other", str(today - timedelta(days=72)), "Housewarming gift")
-        ]
-        
-        conn.executemany(
-            "INSERT INTO expenses (user_id, amount, category, date, description) VALUES (?, ?, ?, ?, ?)",
-            expenses
-        )
-        
-    conn.close()
-    return user_id, name
+            conn.executemany(
+                "INSERT INTO expenses (user_id, amount, category, date, description) VALUES (?, ?, ?, ?, ?)",
+                expenses
+            )
+        return user_id, name
+    finally:
+        conn.close()
 
 
 

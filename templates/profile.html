@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Profile — Outflow{% endblock %}
+{% block title %}Profile: Outflow{% endblock %}
 
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}">
@@ -12,15 +12,23 @@
     <aside class="profile-sidebar">
         <!-- User Info Card -->
         <div class="profile-card user-card">
-            <div class="avatar-circle">
-                <span>{{ user_info.initials }}</span>
-            </div>
-            <h2 class="user-name">{{ user_info.name }}</h2>
-            <p class="user-email">{{ user_info.email }}</p>
-            <p class="user-meta">
-                <i data-lucide="calendar" class="meta-icon"></i>
-                Member since {{ user_info.member_since }}
-            </p>
+            {% if session.get('is_demo') %}
+                <div class="avatar-circle">
+                    <span>DM</span>
+                </div>
+                <h2 class="user-name">Demo Account</h2>
+                <p class="user-subtitle">Explore Outflow using realistic sample financial data.</p>
+            {% else %}
+                <div class="avatar-circle">
+                    <span>{{ user_info.initials }}</span>
+                </div>
+                <h2 class="user-name">{{ user_info.name }}</h2>
+                <p class="user-email">{{ user_info.email }}</p>
+                <p class="user-meta">
+                    <i data-lucide="calendar" class="meta-icon"></i>
+                    Member since {{ user_info.member_since }}
+                </p>
+            {% endif %}
         </div>
 
         <!-- Category Breakdown Card -->

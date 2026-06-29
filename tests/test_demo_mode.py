@@ -22,7 +22,7 @@ def test_demo_login_flow():
         html = response.data.decode("utf-8")
         assert "Demo Mode" in html
         assert "Welcome to Outflow in Demo Mode!" in html
-        assert "You are exploring Outflow in Demo Mode." in html
+        assert "You're exploring a fully interactive version of Outflow using sample financial data." in html
         
         # Verify session state
         with client.session_transaction() as sess:

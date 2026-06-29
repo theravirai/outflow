@@ -14,9 +14,9 @@
     {% if session.get('is_demo') %}
     <div class="demo-banner">
         <div class="demo-banner-inner">
-            <span>
-                <i data-lucide="alert-triangle" class="demo-banner-icon"></i>
-                You are exploring Outflow in Demo Mode. Changes made here are temporary and may be reset.
+            <span class="demo-banner-message">
+                <strong class="demo-banner-title">Demo Mode</strong>
+                You're exploring a fully interactive version of Outflow using sample financial data. Changes made here are temporary and may be reset at any time.
             </span>
             <a href="{{ url_for('register') }}" class="demo-banner-cta">Create Your Account</a>
         </div>
@@ -37,13 +37,14 @@
                             Demo Mode
                         </div>
                         <a href="{{ url_for('register') }}" class="nav-cta">Create Account</a>
+                        <a href="{{ url_for('logout') }}">Exit Demo</a>
                     {% else %}
                         <a href="{{ url_for('profile') }}" class="nav-user-greeting">
                             <i data-lucide="user" class="nav-user-icon"></i>
                             {{ session.get('user_name', 'User') }}
                         </a>
+                        <a href="{{ url_for('logout') }}">Sign out</a>
                     {% endif %}
-                    <a href="{{ url_for('logout') }}">Sign out</a>
                 {% else %}
                     <a href="{{ url_for('login') }}">Sign in</a>
                     <a href="{{ url_for('register') }}" class="nav-cta">Get started</a>

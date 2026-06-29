@@ -22,8 +22,12 @@
             Outflow helps you record expenses, monitor spending, and understand where your money goes without unnecessary complexity.
         </p>
         <div class="hero-actions">
-            <a href="{{ url_for('register') }}" class="btn-hero-primary">Start Tracking</a>
-            <a href="{{ url_for('demo_login') }}" class="btn-hero-secondary">Try Demo</a>
+            {% if session.get('user_id') %}
+                <a href="{{ url_for('profile') }}" class="btn-hero-primary">Go to Dashboard</a>
+            {% else %}
+                <a href="{{ url_for('register') }}" class="btn-hero-primary">Start Tracking</a>
+                <a href="{{ url_for('demo_login') }}" class="btn-hero-secondary">Try Demo</a>
+            {% endif %}
         </div>
     </div>
     
@@ -110,9 +114,15 @@
 
 <section class="cta-section">
     <div class="cta-inner">
-        <h2 class="cta-title">Ready to take control?</h2>
-        <p class="cta-body">Join thousands of people who track their expenses with Outflow.</p>
-        <a href="{{ url_for('register') }}" class="btn-primary">Create free account</a>
+        {% if session.get('user_id') %}
+            <h2 class="cta-title">Welcome back to Outflow</h2>
+            <p class="cta-body">Manage your expenses and view your financial breakdown.</p>
+            <a href="{{ url_for('profile') }}" class="btn-primary">Go to Dashboard</a>
+        {% else %}
+            <h2 class="cta-title">Ready to take control?</h2>
+            <p class="cta-body">Join thousands of people who track their expenses with Outflow.</p>
+            <a href="{{ url_for('register') }}" class="btn-primary">Create free account</a>
+        {% endif %}
     </div>
 </section>
 

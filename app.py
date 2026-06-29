@@ -12,9 +12,22 @@ from database.queries import get_user_by_id, get_summary_stats, get_recent_trans
 app = Flask(__name__)
 app.secret_key = "dev-secret-change-in-prod"
 
+VALID_CATEGORIES = ["Food", "Transport", "Bills", "Health", "Healthcare", "Travel", "Entertainment", "Shopping", "Other"]
+
 with app.app_context():
     init_db()
     seed_db()
+
+
+@app.before_request
+def check_demo_expiry():
+    path = request.path
+    if (path == "/profile" or path.startswith("/expenses")) and not session.get("user_id"):
+        if request.cookies.get("was_demo"):
+            response = redirect(url_for("landing"))
+            response.delete_cookie("was_demo")
+            flash("Your demo session has expired.")
+            return response
 
 # ------------------------------------------------------------------ #
 # Routes                                                              #
@@ -29,19 +42,29 @@ def landing():
 
 @app.route("/demo")
 def demo_login():
+    if session.get("user_id") and not session.get("is_demo"):
+        return redirect(url_for("profile"))
+
     cleanup_old_demo_users()
     user_id, user_name = create_demo_user()
     session["user_id"] = user_id
     session["user_name"] = user_name
     session["is_demo"] = True
     flash("Welcome to Outflow in Demo Mode!")
-    return redirect(url_for("profile"))
+    
+    response = redirect(url_for("profile"))
+    response.set_cookie("was_demo", "1", max_age=3600)  # expires in 1 hour
+    return response
 
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if session.get("user_id"):
-        return redirect(url_for("profile"))
+        if session.get("is_demo"):
+            session.clear()
+            flash("Create your own Outflow account to start tracking your personal finances.")
+        else:
+            return redirect(url_for("profile"))
     if request.method == "GET":
         return render_template("register.html")
 
@@ -79,7 +102,10 @@ def register():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if session.get("user_id"):
-        return redirect(url_for("profile"))
+        if session.get("is_demo"):
+            session.clear()
+        else:
+            return redirect(url_for("profile"))
     if request.method == "GET":
         return render_template("login.html")
 
@@ -111,7 +137,12 @@ def terms():
 
 @app.route("/logout")
 def logout():
+    is_demo = session.get("is_demo")
     session.clear()
+    if is_demo:
+        response = redirect(url_for("landing"))
+        response.delete_cookie("was_demo")
+        return response
     return redirect(url_for("login"))
 
 
@@ -214,11 +245,10 @@ def add_expense():
         except ValueError:
             error = "Amount must be a valid number."
 
-    valid_categories = ["Food", "Transport", "Bills", "Health", "Healthcare", "Travel", "Entertainment", "Shopping", "Other"]
     if not error:
         if not category:
             error = "Category is required."
-        elif category not in valid_categories:
+        elif category not in VALID_CATEGORIES:
             error = "Invalid category selected."
 
     if not error:
@@ -293,11 +323,10 @@ def edit_expense(id):
         except ValueError:
             error = "Amount must be a valid number."
 
-    valid_categories = ["Food", "Transport", "Bills", "Health", "Healthcare", "Travel", "Entertainment", "Shopping", "Other"]
     if not error:
         if not category:
             error = "Category is required."
-        elif category not in valid_categories:
+        elif category not in VALID_CATEGORIES:
             error = "Invalid category selected."
 
     if not error:

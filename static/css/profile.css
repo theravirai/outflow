@@ -99,10 +99,11 @@
     margin-bottom: 0.25rem;
 }
 
-.user-email {
+.user-email, .user-subtitle {
     color: var(--ink-muted);
     font-size: 0.9rem;
     margin-bottom: 1.25rem;
+    line-height: 1.4;
 }
 
 .user-meta {
