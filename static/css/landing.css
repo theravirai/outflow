@@ -22,12 +22,12 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    background: #f0fdfa; /* Very light teal */
-    color: #0d9488; /* Sharp teal */
+    background: var(--accent-light); /* Adaptive background */
+    color: var(--accent); /* Adaptive accent text */
     font-size: 0.8rem;
     font-weight: 600;
     padding: 0.4rem 1rem;
-    border: 1px solid #ccfbf1;
+    border: 1px solid var(--border-soft);
     border-radius: 999px;
     margin-bottom: 2.5rem;
     letter-spacing: 0.02em;
@@ -36,7 +36,7 @@
 .badge-dot {
     width: 6px;
     height: 6px;
-    background: #14b8a6; /* Vibrant teal dot */
+    background: var(--accent); /* Adaptive accent dot */
     border-radius: 50%;
 }
 
@@ -44,18 +44,18 @@
     font-family: var(--font-display);
     font-size: clamp(3rem, 7vw, 5rem);
     line-height: 1.05;
-    color: #111827; /* Very dark gray/black */
+    color: var(--ink); /* Adaptive dark/light text */
     margin-bottom: 1.5rem;
     font-weight: 700;
 }
 
 .teal-text {
-    color: #0d9488; /* Matching teal */
+    color: var(--accent); /* Adaptive accent text */
 }
 
 .hero-subtitle {
     font-size: 1.25rem;
-    color: #4b5563; /* Muted gray */
+    color: var(--ink-soft); /* Adaptive ink-soft color */
     line-height: 1.6;
     margin-bottom: 3rem;
     max-width: 640px;
@@ -67,8 +67,8 @@
 }
 
 .btn-hero-primary {
-    background: #111827;
-    color: #ffffff;
+    background: var(--ink); /* Adaptive ink button */
+    color: var(--paper); /* Adaptive paper button text */
     padding: 1rem 2.25rem;
     border-radius: 10px;
     font-weight: 600;
@@ -78,24 +78,24 @@
 }
 
 .btn-hero-primary:hover {
-    background: #000;
+    background: var(--accent); /* Adapt to theme accent */
     transform: translateY(-2px);
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 
 .btn-hero-secondary {
     background: transparent;
-    color: #111827;
+    color: var(--ink); /* Adaptive ink text */
     padding: 1rem 2.25rem;
     border-radius: 10px;
     font-weight: 600;
     font-size: 1.05rem;
-    border: 2px solid #e5e7eb;
+    border: 2px solid var(--border); /* Adaptive border */
     transition: all 0.2s ease;
 }
 
 .btn-hero-secondary:hover {
-    border-color: #111827;
+    border-color: var(--ink);
     transform: translateY(-2px);
 }
 
@@ -164,8 +164,8 @@
 }
 
 .preview-frame {
-    background: #f9fafb; /* Clean light gray */
-    border: 1px solid #e5e7eb;
+    background: var(--paper); /* Adaptive background */
+    border: 1px solid var(--border); /* Adaptive border */
     border-radius: 20px;
     overflow: hidden;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
@@ -173,11 +173,11 @@
 
 .frame-header {
     height: 44px;
-    background: #ffffff;
+    background: var(--paper-card); /* Adaptive paper-card */
     display: flex;
     align-items: center;
     padding: 0 1.25rem;
-    border-bottom: 1px solid #f3f4f6;
+    border-bottom: 1px solid var(--border-soft); /* Adaptive border-soft */
 }
 
 .traffic-lights {
@@ -207,10 +207,10 @@
 }
 
 .stat-card {
-    background: #ffffff;
+    background: var(--paper-card); /* Adaptive paper-card */
     padding: 1.75rem;
     border-radius: 16px;
-    border: 1px solid #f3f4f6;
+    border: 1px solid var(--border-soft); /* Adaptive border-soft */
     text-align: left;
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
@@ -219,22 +219,22 @@
     display: block;
     font-size: 0.875rem;
     font-weight: 500;
-    color: #6b7280;
+    color: var(--ink-muted); /* Adaptive ink-muted color */
     margin-bottom: 0.75rem;
 }
 
 .stat-value {
     font-family: var(--font-display);
     font-size: 2rem;
-    color: #111827;
+    color: var(--ink); /* Adaptive ink color */
     font-weight: 700;
 }
 
 .preview-chart {
-    background: #ffffff;
+    background: var(--paper-card); /* Adaptive paper-card */
     padding: 2.5rem;
     border-radius: 16px;
-    border: 1px solid #f3f4f6;
+    border: 1px solid var(--border-soft); /* Adaptive border-soft */
     text-align: left;
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
@@ -246,7 +246,7 @@
 .chart-title {
     font-weight: 700;
     font-size: 1.1rem;
-    color: #111827;
+    color: var(--ink); /* Adaptive ink color */
 }
 
 .chart-bars {
@@ -265,26 +265,26 @@
 .bar-label {
     font-size: 0.95rem;
     font-weight: 500;
-    color: #374151;
+    color: var(--ink-soft); /* Adaptive ink-soft color */
 }
 
 .bar-track {
     height: 10px;
-    background: #f3f4f6;
+    background: var(--border-soft); /* Adaptive border-soft */
     border-radius: 999px;
     overflow: hidden;
 }
 
 .bar-fill {
     height: 100%;
-    background: #0d9488; /* Teal */
+    background: var(--accent); /* Adaptive accent fill */
     border-radius: 999px;
 }
 
 .bar-value {
     font-size: 1rem;
     font-weight: 600;
-    color: #111827;
+    color: var(--ink); /* Adaptive ink color */
     text-align: right;
 }
 

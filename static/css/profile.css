@@ -226,8 +226,8 @@
 }
 
 .text-info {
-    background: #e6f0fa;
-    color: #2b6cb0;
+    background: var(--info-light);
+    color: var(--info);
 }
 
 .stat-content {
@@ -340,7 +340,7 @@
 }
 
 .transactions-table tr:hover td {
-    background: #fafaf9;
+    background: var(--border-soft);
 }
 
 .text-right {
@@ -388,7 +388,7 @@
 }
 
 .badge-transport {
-    background-color: #f3f0f7;
+    background-color: var(--color-transport-light);
     color: var(--color-transport);
 }
 
@@ -398,7 +398,7 @@
 }
 
 .badge-shopping {
-    background-color: #eaf1f7;
+    background-color: var(--color-shopping-light);
     color: var(--color-shopping);
 }
 
@@ -418,13 +418,13 @@
 }
 
 .badge-travel {
-    background-color: #e8f5e9;
-    color: #2e7d32;
+    background-color: var(--color-travel-light);
+    color: var(--color-travel);
 }
 
 .badge-entertainment {
-    background-color: #fdf3e3;
-    color: #c17f24;
+    background-color: var(--color-entertainment-light);
+    color: var(--color-entertainment);
 }
 
 .badge-other {
