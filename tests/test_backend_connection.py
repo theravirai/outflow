@@ -1,5 +1,5 @@
 import pytest
-import sqlite3
+import os
 from datetime import datetime, timedelta
 from app import app
 from database.db import get_db, init_db, seed_db
@@ -11,19 +11,24 @@ from database.queries import (
 )
 
 @pytest.fixture(autouse=True)
-def setup_test_db(monkeypatch, tmp_path):
-    """Sets up a temporary SQLite database for testing."""
-    db_file = tmp_path / "test_expense_tracker.db"
+def setup_test_db(monkeypatch):
+    """Sets up a test PostgreSQL database for testing."""
+    test_db_url = os.environ.get("DATABASE_URL_TEST")
+    if not test_db_url:
+        pytest.fail("DATABASE_URL_TEST environment variable is not set. Testing requires a PostgreSQL database.")
     
-    # Override the DB_PATH in the db module (used by get_db)
-    monkeypatch.setattr("database.db.DB_PATH", str(db_file))
+    monkeypatch.setattr("database.db.DATABASE_URL", test_db_url)
     
     init_db()
+    
+    conn = get_db()
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute("TRUNCATE TABLE users, expenses RESTART IDENTITY CASCADE;")
+    conn.close()
+    
     seed_db()
-    
     yield
-    
-    # DB is automatically removed with tmp_path
 
 def test_get_user_by_id_valid():
     # User 1 is Demo User seeded by seed_db
@@ -51,12 +56,13 @@ def test_get_summary_stats_with_expenses():
 def test_get_summary_stats_no_expenses():
     # Insert a user with no expenses
     conn = get_db()
-    cur = conn.execute(
-        "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
-        ("No Expense User", "noexpenses@outflow.com", "hash")
-    )
-    user_id = cur.lastrowid
-    conn.commit()
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO users (name, email, password_hash) VALUES (%s, %s, %s) RETURNING id",
+                ("No Expense User", "noexpenses@outflow.com", "hash")
+            )
+            user_id = cur.fetchone()[0]
     conn.close()
 
     stats = get_summary_stats(user_id)
@@ -76,12 +82,13 @@ def test_get_recent_transactions_with_expenses():
 
 def test_get_recent_transactions_no_expenses():
     conn = get_db()
-    cur = conn.execute(
-        "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
-        ("No Expense User", "noexpenses@outflow.com", "hash")
-    )
-    user_id = cur.lastrowid
-    conn.commit()
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO users (name, email, password_hash) VALUES (%s, %s, %s) RETURNING id",
+                ("No Expense User", "noexpenses@outflow.com", "hash")
+            )
+            user_id = cur.fetchone()[0]
     conn.close()
 
     txs = get_recent_transactions(user_id)
@@ -113,12 +120,13 @@ def test_get_category_breakdown_with_expenses():
 
 def test_get_category_breakdown_no_expenses():
     conn = get_db()
-    cur = conn.execute(
-        "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
-        ("No Expense User", "noexpenses@outflow.com", "hash")
-    )
-    user_id = cur.lastrowid
-    conn.commit()
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO users (name, email, password_hash) VALUES (%s, %s, %s) RETURNING id",
+                ("No Expense User", "noexpenses@outflow.com", "hash")
+            )
+            user_id = cur.fetchone()[0]
     conn.close()
 
     breakdown = get_category_breakdown(user_id)
@@ -130,12 +138,20 @@ def test_profile_route_unauthenticated():
         assert response.status_code == 302
         assert "/login" in response.headers["Location"]
 
-def test_profile_route_authenticated(monkeypatch, tmp_path):
-    # Setup test DB file path override for the app client too
-    db_file = tmp_path / "test_expense_tracker.db"
-    monkeypatch.setattr("database.db.DB_PATH", str(db_file))
+def test_profile_route_authenticated(monkeypatch):
+    test_db_url = os.environ.get("DATABASE_URL_TEST")
+    if not test_db_url:
+        pytest.fail("DATABASE_URL_TEST environment variable is not set. Testing requires a PostgreSQL database.")
+    monkeypatch.setattr("database.db.DATABASE_URL", test_db_url)
     
     init_db()
+    
+    conn = get_db()
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute("TRUNCATE TABLE users, expenses RESTART IDENTITY CASCADE;")
+    conn.close()
+    
     seed_db()
 
     with app.test_client() as client:

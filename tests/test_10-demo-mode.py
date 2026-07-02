@@ -1,16 +1,26 @@
 import pytest
-import sqlite3
+import os
 from datetime import datetime, timedelta, timezone
 from flask import session
 from app import app
 from database.db import get_db, init_db, seed_db, cleanup_old_demo_users
 
 @pytest.fixture(autouse=True)
-def setup_test_db(monkeypatch, tmp_path):
-    """Sets up a temporary SQLite database for testing and overrides the DB path."""
-    db_file = tmp_path / "test_expense_tracker.db"
-    monkeypatch.setattr("database.db.DB_PATH", str(db_file))
+def setup_test_db(monkeypatch):
+    """Sets up a test PostgreSQL database for testing."""
+    test_db_url = os.environ.get("DATABASE_URL_TEST")
+    if not test_db_url:
+        pytest.fail("DATABASE_URL_TEST environment variable is not set. Testing requires a PostgreSQL database.")
+    
+    monkeypatch.setattr("database.db.DATABASE_URL", test_db_url)
     init_db()
+    
+    conn = get_db()
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute("TRUNCATE TABLE users, expenses RESTART IDENTITY CASCADE;")
+    conn.close()
+    
     seed_db()
     # Reset cleanup rate limit
     monkeypatch.setattr("database.db._LAST_CLEANUP_TIME", 0)
@@ -23,6 +33,7 @@ def test_demo_happy_path():
     """
     with app.test_client() as client:
         # GET /demo
+        # This will internally invoke database methods
         response = client.get("/demo")
         # Should redirect to /profile
         assert response.status_code == 302
@@ -42,33 +53,36 @@ def test_demo_happy_path():
             
         # Verify user is created in database
         conn = get_db()
-        user = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
-        assert user is not None
-        assert user["name"] == "Demo Mode"
-        assert user["email"].startswith("demo_session_")
-        assert user["email"].endswith("@outflow.com")
-        
-        # Verify security: no credentials or sensitive hashes exposed in UI
-        assert user["password_hash"] is not None
-        assert user["password_hash"] != ""
-        assert user["password_hash"] not in html
-        
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+            user = cur.fetchone()
+            assert user is not None
+            assert user["name"] == "Demo Mode"
+            assert user["email"].startswith("demo_session_")
+            assert user["email"].endswith("@outflow.com")
+            
+            # Verify security: no credentials or sensitive hashes exposed in UI
+            assert user["password_hash"] is not None
+            assert user["password_hash"] != ""
+            assert user["password_hash"] not in html
+            
+            # Verify seeded expenses exist and cover multiple categories:
+            # Food, Transport, Bills, Shopping, Entertainment, Healthcare, Travel, and Other
+            cur.execute("SELECT * FROM expenses WHERE user_id = %s", (user_id,))
+            expenses = cur.fetchall()
+            assert len(expenses) > 0
+            
+            categories = {exp["category"] for exp in expenses}
+            expected_categories = {"Food", "Transport", "Bills", "Shopping", "Entertainment", "Healthcare", "Travel", "Other"}
+            for cat in expected_categories:
+                assert cat in categories, f"Category '{cat}' was not seeded in demo mode"
+                
         # Verify credentials are not exposed on landing or login pages
         landing_response = client.get("/")
         assert user["email"] not in landing_response.data.decode("utf-8")
         login_response = client.get("/login")
         assert user["email"] not in login_response.data.decode("utf-8")
         
-        # Verify seeded expenses exist and cover multiple categories:
-        # Food, Transport, Bills, Shopping, Entertainment, Healthcare, Travel, and Other
-        expenses = conn.execute("SELECT * FROM expenses WHERE user_id = ?", (user_id,)).fetchall()
-        assert len(expenses) > 0
-        
-        categories = {exp["category"] for exp in expenses}
-        expected_categories = {"Food", "Transport", "Bills", "Shopping", "Entertainment", "Healthcare", "Travel", "Other"}
-        for cat in expected_categories:
-            assert cat in categories, f"Category '{cat}' was not seeded in demo mode"
-            
         # Verify UI indicators are present in the response page
         assert "You're exploring a fully interactive version of Outflow using sample financial data." in html
         assert "Demo Mode" in html
@@ -93,14 +107,19 @@ def test_demo_data_isolation():
     
     # Separate data in database
     conn = get_db()
-    user_a = conn.execute("SELECT * FROM users WHERE id = ?", (user_id_a,)).fetchone()
-    user_b = conn.execute("SELECT * FROM users WHERE id = ?", (user_id_b,)).fetchone()
-    assert user_a["email"] != user_b["email"]
-    
-    expenses_a = conn.execute("SELECT COUNT(*) FROM expenses WHERE user_id = ?", (user_id_a,)).fetchone()[0]
-    expenses_b = conn.execute("SELECT COUNT(*) FROM expenses WHERE user_id = ?", (user_id_b,)).fetchone()[0]
-    assert expenses_a > 0
-    assert expenses_b > 0
+    with conn.cursor() as cur:
+        cur.execute("SELECT * FROM users WHERE id = %s", (user_id_a,))
+        user_a = cur.fetchone()
+        cur.execute("SELECT * FROM users WHERE id = %s", (user_id_b,))
+        user_b = cur.fetchone()
+        assert user_a["email"] != user_b["email"]
+        
+        cur.execute("SELECT COUNT(*) FROM expenses WHERE user_id = %s", (user_id_a,))
+        expenses_a = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM expenses WHERE user_id = %s", (user_id_b,))
+        expenses_b = cur.fetchone()[0]
+        assert expenses_a > 0
+        assert expenses_b > 0
     conn.close()
 
 def test_normal_authentication_still_works():
@@ -151,58 +170,62 @@ def test_healthcare_and_travel_categories_accepted():
         assert response.status_code == 200
         
         conn = get_db()
-        expense = conn.execute(
-            "SELECT * FROM expenses WHERE user_id = ? AND category = ? ORDER BY id DESC LIMIT 1",
-            (user_id, "Healthcare")
-        ).fetchone()
-        assert expense is not None
-        assert expense["amount"] == 15.50
-        assert expense["description"] == "Medicine"
-        expense_id = expense["id"]
-        
-        # Add expense with category "Travel"
-        response2 = client.post("/expenses/add", data={
-            "amount": "120.00",
-            "category": "Travel",
-            "date": "2026-07-01",
-            "description": "Flight"
-        }, follow_redirects=True)
-        assert response2.status_code == 200
-        
-        expense2 = conn.execute(
-            "SELECT * FROM expenses WHERE user_id = ? AND category = ? ORDER BY id DESC LIMIT 1",
-            (user_id, "Travel")
-        ).fetchone()
-        assert expense2 is not None
-        assert expense2["amount"] == 120.00
-        
-        # Edit expense to change category from Healthcare to Travel
-        response3 = client.post(f"/expenses/{expense_id}/edit", data={
-            "amount": "18.50",
-            "category": "Travel",
-            "date": "2026-07-02",
-            "description": "Updated Medicine"
-        }, follow_redirects=True)
-        assert response3.status_code == 200
-        
-        updated_expense = conn.execute("SELECT * FROM expenses WHERE id = ?", (expense_id,)).fetchone()
-        assert updated_expense["category"] == "Travel"
-        assert updated_expense["amount"] == 18.50
-        assert updated_expense["date"] == "2026-07-02"
-        assert updated_expense["description"] == "Updated Medicine"
-        
-        # Edit expense back to Healthcare
-        response4 = client.post(f"/expenses/{expense_id}/edit", data={
-            "amount": "18.50",
-            "category": "Healthcare",
-            "date": "2026-07-02",
-            "description": "Updated Medicine"
-        }, follow_redirects=True)
-        assert response4.status_code == 200
-        
-        updated_expense = conn.execute("SELECT * FROM expenses WHERE id = ?", (expense_id,)).fetchone()
-        assert updated_expense["category"] == "Healthcare"
-        
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT * FROM expenses WHERE user_id = %s AND category = %s ORDER BY id DESC LIMIT 1",
+                (user_id, "Healthcare")
+            )
+            expense = cur.fetchone()
+            assert expense is not None
+            assert expense["amount"] == 15.50
+            assert expense["description"] == "Medicine"
+            expense_id = expense["id"]
+            
+            # Add expense with category "Travel"
+            response2 = client.post("/expenses/add", data={
+                "amount": "120.00",
+                "category": "Travel",
+                "date": "2026-07-01",
+                "description": "Flight"
+            }, follow_redirects=True)
+            assert response2.status_code == 200
+            
+            cur.execute(
+                "SELECT * FROM expenses WHERE user_id = %s AND category = %s ORDER BY id DESC LIMIT 1",
+                (user_id, "Travel")
+            )
+            expense2 = cur.fetchone()
+            assert expense2 is not None
+            assert expense2["amount"] == 120.00
+            
+            # Edit expense to change category from Healthcare to Travel
+            response3 = client.post(f"/expenses/{expense_id}/edit", data={
+                "amount": "18.50",
+                "category": "Travel",
+                "date": "2026-07-02",
+                "description": "Updated Medicine"
+            }, follow_redirects=True)
+            assert response3.status_code == 200
+            
+            cur.execute("SELECT * FROM expenses WHERE id = %s", (expense_id,))
+            updated_expense = cur.fetchone()
+            assert updated_expense["category"] == "Travel"
+            assert updated_expense["amount"] == 18.50
+            assert updated_expense["date"] == "2026-07-02"
+            assert updated_expense["description"] == "Updated Medicine"
+            
+            # Edit expense back to Healthcare
+            response4 = client.post(f"/expenses/{expense_id}/edit", data={
+                "amount": "18.50",
+                "category": "Healthcare",
+                "date": "2026-07-02",
+                "description": "Updated Medicine"
+            }, follow_redirects=True)
+            assert response4.status_code == 200
+            
+            cur.execute("SELECT * FROM expenses WHERE id = %s", (expense_id,))
+            updated_expense = cur.fetchone()
+            assert updated_expense["category"] == "Healthcare"
         conn.close()
 
 def test_demo_logout():
@@ -228,59 +251,66 @@ def test_cleanup_old_demo_users_correctness(monkeypatch):
     monkeypatch.setattr("database.db._LAST_CLEANUP_TIME", 0)
     
     conn = get_db()
-    
-    # 1. Create an old demo user (created 25 hours ago)
-    old_time = (datetime.now(timezone.utc) - timedelta(hours=25)).strftime("%Y-%m-%d %H:%M:%S")
-    cur = conn.execute(
-        "INSERT INTO users (name, email, password_hash, created_at) VALUES (?, ?, ?, ?)",
-        ("Demo Mode", "demo_session_old@outflow.com", "dummy_hash", old_time)
-    )
-    old_demo_id = cur.lastrowid
-    
-    # Add expense for old demo user
-    conn.execute(
-        "INSERT INTO expenses (user_id, amount, category, date, description) VALUES (?, ?, ?, ?, ?)",
-        (old_demo_id, 10.0, "Food", "2026-07-01", "old expense")
-    )
-    
-    # 2. Create a recent demo user (created 2 hours ago)
-    recent_time = (datetime.now(timezone.utc) - timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S")
-    cur = conn.execute(
-        "INSERT INTO users (name, email, password_hash, created_at) VALUES (?, ?, ?, ?)",
-        ("Demo Mode", "demo_session_recent@outflow.com", "dummy_hash", recent_time)
-    )
-    recent_demo_id = cur.lastrowid
-    
-    # Add expense for recent demo user
-    conn.execute(
-        "INSERT INTO expenses (user_id, amount, category, date, description) VALUES (?, ?, ?, ?, ?)",
-        (recent_demo_id, 20.0, "Food", "2026-07-01", "recent expense")
-    )
-    
-    # 3. Create a normal user created more than 24 hours ago
-    cur = conn.execute(
-        "INSERT INTO users (name, email, password_hash, created_at) VALUES (?, ?, ?, ?)",
-        ("Normal User", "normal_old@example.com", "dummy_hash", old_time)
-    )
-    normal_id = cur.lastrowid
-    
-    # Add expense for normal user
-    conn.execute(
-        "INSERT INTO expenses (user_id, amount, category, date, description) VALUES (?, ?, ?, ?, ?)",
-        (normal_id, 30.0, "Food", "2026-07-01", "normal old expense")
-    )
-    
+    with conn.cursor() as cur:
+        # 1. Create an old demo user (created 25 hours ago)
+        old_time = (datetime.now(timezone.utc) - timedelta(hours=25)).strftime("%Y-%m-%d %H:%M:%S")
+        cur.execute(
+            "INSERT INTO users (name, email, password_hash, created_at) VALUES (%s, %s, %s, %s) RETURNING id",
+            ("Demo Mode", "demo_session_old@outflow.com", "dummy_hash", old_time)
+        )
+        old_demo_id = cur.fetchone()[0]
+        
+        # Add expense for old demo user
+        cur.execute(
+            "INSERT INTO expenses (user_id, amount, category, date, description) VALUES (%s, %s, %s, %s, %s)",
+            (old_demo_id, 10.0, "Food", "2026-07-01", "old expense")
+        )
+        
+        # 2. Create a recent demo user (created 2 hours ago)
+        recent_time = (datetime.now(timezone.utc) - timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S")
+        cur.execute(
+            "INSERT INTO users (name, email, password_hash, created_at) VALUES (%s, %s, %s, %s) RETURNING id",
+            ("Demo Mode", "demo_session_recent@outflow.com", "dummy_hash", recent_time)
+        )
+        recent_demo_id = cur.fetchone()[0]
+        
+        # Add expense for recent demo user
+        cur.execute(
+            "INSERT INTO expenses (user_id, amount, category, date, description) VALUES (%s, %s, %s, %s, %s)",
+            (recent_demo_id, 20.0, "Food", "2026-07-01", "recent expense")
+        )
+        
+        # 3. Create a normal user created more than 24 hours ago
+        cur.execute(
+            "INSERT INTO users (name, email, password_hash, created_at) VALUES (%s, %s, %s, %s) RETURNING id",
+            ("Normal User", "normal_old@example.com", "dummy_hash", old_time)
+        )
+        normal_id = cur.fetchone()[0]
+        
+        # Add expense for normal user
+        cur.execute(
+            "INSERT INTO expenses (user_id, amount, category, date, description) VALUES (%s, %s, %s, %s, %s)",
+            (normal_id, 30.0, "Food", "2026-07-01", "normal old expense")
+        )
+        
     conn.commit()
     conn.close()
     
     # Verify records exist prior to cleanup
     conn = get_db()
-    assert conn.execute("SELECT COUNT(*) FROM users WHERE id = ?", (old_demo_id,)).fetchone()[0] == 1
-    assert conn.execute("SELECT COUNT(*) FROM expenses WHERE user_id = ?", (old_demo_id,)).fetchone()[0] == 1
-    assert conn.execute("SELECT COUNT(*) FROM users WHERE id = ?", (recent_demo_id,)).fetchone()[0] == 1
-    assert conn.execute("SELECT COUNT(*) FROM expenses WHERE user_id = ?", (recent_demo_id,)).fetchone()[0] == 1
-    assert conn.execute("SELECT COUNT(*) FROM users WHERE id = ?", (normal_id,)).fetchone()[0] == 1
-    assert conn.execute("SELECT COUNT(*) FROM expenses WHERE user_id = ?", (normal_id,)).fetchone()[0] == 1
+    with conn.cursor() as cur:
+        cur.execute("SELECT COUNT(*) FROM users WHERE id = %s", (old_demo_id,))
+        assert cur.fetchone()[0] == 1
+        cur.execute("SELECT COUNT(*) FROM expenses WHERE user_id = %s", (old_demo_id,))
+        assert cur.fetchone()[0] == 1
+        cur.execute("SELECT COUNT(*) FROM users WHERE id = %s", (recent_demo_id,))
+        assert cur.fetchone()[0] == 1
+        cur.execute("SELECT COUNT(*) FROM expenses WHERE user_id = %s", (recent_demo_id,))
+        assert cur.fetchone()[0] == 1
+        cur.execute("SELECT COUNT(*) FROM users WHERE id = %s", (normal_id,))
+        assert cur.fetchone()[0] == 1
+        cur.execute("SELECT COUNT(*) FROM expenses WHERE user_id = %s", (normal_id,))
+        assert cur.fetchone()[0] == 1
     conn.close()
     
     # Trigger database cleanup
@@ -288,15 +318,22 @@ def test_cleanup_old_demo_users_correctness(monkeypatch):
     
     # Verify records state post-cleanup
     conn = get_db()
-    # Old demo user & expenses must be deleted
-    assert conn.execute("SELECT COUNT(*) FROM users WHERE id = ?", (old_demo_id,)).fetchone()[0] == 0
-    assert conn.execute("SELECT COUNT(*) FROM expenses WHERE user_id = ?", (old_demo_id,)).fetchone()[0] == 0
-    
-    # Recent demo user & expenses must remain untouched
-    assert conn.execute("SELECT COUNT(*) FROM users WHERE id = ?", (recent_demo_id,)).fetchone()[0] == 1
-    assert conn.execute("SELECT COUNT(*) FROM expenses WHERE user_id = ?", (recent_demo_id,)).fetchone()[0] == 1
-    
-    # Normal old user & expenses must remain untouched
-    assert conn.execute("SELECT COUNT(*) FROM users WHERE id = ?", (normal_id,)).fetchone()[0] == 1
-    assert conn.execute("SELECT COUNT(*) FROM expenses WHERE user_id = ?", (normal_id,)).fetchone()[0] == 1
+    with conn.cursor() as cur:
+        # Old demo user & expenses must be deleted
+        cur.execute("SELECT COUNT(*) FROM users WHERE id = %s", (old_demo_id,))
+        assert cur.fetchone()[0] == 0
+        cur.execute("SELECT COUNT(*) FROM expenses WHERE user_id = %s", (old_demo_id,))
+        assert cur.fetchone()[0] == 0
+        
+        # Recent demo user & expenses must remain untouched
+        cur.execute("SELECT COUNT(*) FROM users WHERE id = %s", (recent_demo_id,))
+        assert cur.fetchone()[0] == 1
+        cur.execute("SELECT COUNT(*) FROM expenses WHERE user_id = %s", (recent_demo_id,))
+        assert cur.fetchone()[0] == 1
+        
+        # Normal old user & expenses must remain untouched
+        cur.execute("SELECT COUNT(*) FROM users WHERE id = %s", (normal_id,))
+        assert cur.fetchone()[0] == 1
+        cur.execute("SELECT COUNT(*) FROM expenses WHERE user_id = %s", (normal_id,))
+        assert cur.fetchone()[0] == 1
     conn.close()

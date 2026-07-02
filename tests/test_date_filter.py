@@ -13,18 +13,26 @@ from database.queries import (
 )
 
 @pytest.fixture(autouse=True)
-def setup_test_db(monkeypatch, tmp_path):
-    """Sets up a temporary SQLite database for testing and seeds it."""
-    db_file = tmp_path / "test_expense_tracker.db"
+def setup_test_db(monkeypatch):
+    """Sets up a test PostgreSQL database for testing."""
+    import os
+    test_db_url = os.environ.get("DATABASE_URL_TEST")
+    if not test_db_url:
+        pytest.fail("DATABASE_URL_TEST environment variable is not set. Testing requires a PostgreSQL database.")
     
-    # Override the DB_PATH in the db module (used by get_db)
-    monkeypatch.setattr("database.db.DB_PATH", str(db_file))
+    monkeypatch.setattr("database.db.DATABASE_URL", test_db_url)
     
     init_db()
-    seed_db()
     
+    conn = get_db()
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute("TRUNCATE TABLE users, expenses RESTART IDENTITY CASCADE;")
+    conn.close()
+    
+    seed_db()
     yield
-    # DB is automatically removed with tmp_path
+
 
 # Helper to check active preset in HTML
 def assert_preset_active(html, active_text, inactive_texts):

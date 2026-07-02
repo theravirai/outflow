@@ -1,22 +1,28 @@
 import pytest
+import os
 from datetime import date
 from app import app
 from database.db import get_db, init_db, seed_db, create_expense
 
 @pytest.fixture(autouse=True)
-def setup_test_db(monkeypatch, tmp_path):
-    """Sets up a temporary SQLite database for testing and overrides the database path."""
-    db_file = tmp_path / "test_expense_tracker_07.db"
+def setup_test_db(monkeypatch):
+    """Sets up a test PostgreSQL database for testing."""
+    test_db_url = os.environ.get("DATABASE_URL_TEST")
+    if not test_db_url:
+        pytest.fail("DATABASE_URL_TEST environment variable is not set. Testing requires a PostgreSQL database.")
     
-    # Override the DB_PATH in the database module
-    monkeypatch.setattr("database.db.DB_PATH", str(db_file))
+    monkeypatch.setattr("database.db.DATABASE_URL", test_db_url)
     
-    # Initialize and seed database
     init_db()
-    seed_db()
     
+    conn = get_db()
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute("TRUNCATE TABLE users, expenses RESTART IDENTITY CASCADE;")
+    conn.close()
+    
+    seed_db()
     yield
-    # Temp file is automatically cleaned up
 
 # ------------------------------------------------------------------ #
 # Authorization Guards
@@ -43,8 +49,9 @@ def test_post_add_expense_unauthenticated():
         
         # Verify no expense was inserted into the database
         conn = get_db()
-        cursor = conn.execute("SELECT COUNT(*) as count FROM expenses")
-        count = cursor.fetchone()["count"]
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) as count FROM expenses")
+            count = cur.fetchone()["count"]
         # Default seeded expenses is 8
         assert count == 8
         conn.close()
@@ -117,8 +124,9 @@ def test_add_expense_successful_insertion():
         
         # Initial check
         conn = get_db()
-        cursor = conn.execute("SELECT COUNT(*) as count FROM expenses WHERE user_id = 1")
-        initial_count = cursor.fetchone()["count"]
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) as count FROM expenses WHERE user_id = 1")
+            initial_count = cur.fetchone()["count"]
         assert initial_count == 8
         conn.close()
         
@@ -138,17 +146,18 @@ def test_add_expense_successful_insertion():
         
         # Verify db insertion and description stripping
         conn = get_db()
-        cursor = conn.execute("SELECT * FROM expenses WHERE user_id = 1 ORDER BY id DESC LIMIT 1")
-        new_expense = cursor.fetchone()
-        assert new_expense is not None
-        assert new_expense["amount"] == 12.50
-        assert new_expense["category"] == "Food"
-        assert new_expense["date"] == "2026-06-25"
-        assert new_expense["description"] == "Sandwich for lunch"  # Whitespaces stripped
-        
-        # Total count increased by 1
-        cursor = conn.execute("SELECT COUNT(*) as count FROM expenses WHERE user_id = 1")
-        assert cursor.fetchone()["count"] == 9
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM expenses WHERE user_id = 1 ORDER BY id DESC LIMIT 1")
+            new_expense = cur.fetchone()
+            assert new_expense is not None
+            assert new_expense["amount"] == 12.50
+            assert new_expense["category"] == "Food"
+            assert new_expense["date"] == "2026-06-25"
+            assert new_expense["description"] == "Sandwich for lunch"  # Whitespaces stripped
+            
+            # Total count increased by 1
+            cur.execute("SELECT COUNT(*) as count FROM expenses WHERE user_id = 1")
+            assert cur.fetchone()["count"] == 9
         conn.close()
 
 def test_validation_amount_missing():
@@ -319,8 +328,9 @@ def test_database_helper_create_expense():
     
     # Retrieve and verify
     conn = get_db()
-    cursor = conn.execute("SELECT * FROM expenses WHERE id = ?", (expense_id,))
-    row = cursor.fetchone()
+    with conn.cursor() as cur:
+        cur.execute("SELECT * FROM expenses WHERE id = %s", (expense_id,))
+        row = cur.fetchone()
     conn.close()
     
     assert row is not None

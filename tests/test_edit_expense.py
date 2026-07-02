@@ -1,18 +1,27 @@
 import pytest
+import os
 from datetime import date
 from app import app
 from database.db import get_db, init_db, seed_db
 
 @pytest.fixture(autouse=True)
-def setup_test_db(monkeypatch, tmp_path):
-    """Sets up a temporary SQLite database for testing and overrides the path."""
-    db_file = tmp_path / "test_expense_tracker.db"
+def setup_test_db(monkeypatch):
+    """Sets up a test PostgreSQL database for testing."""
+    test_db_url = os.environ.get("DATABASE_URL_TEST")
+    if not test_db_url:
+        pytest.fail("DATABASE_URL_TEST environment variable is not set. Testing requires a PostgreSQL database.")
     
-    monkeypatch.setattr("database.db.DB_PATH", str(db_file))
+    monkeypatch.setattr("database.db.DATABASE_URL", test_db_url)
     
     init_db()
-    seed_db()
     
+    conn = get_db()
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute("TRUNCATE TABLE users, expenses RESTART IDENTITY CASCADE;")
+    conn.close()
+    
+    seed_db()
     yield
 
 def test_edit_expense_route_unauthenticated():
@@ -49,18 +58,20 @@ def test_edit_expense_unauthorized():
     """Accessing another user's expense should return 403."""
     # First, let's create a second user and add an expense for them
     conn = get_db()
-    # Insert User 2
-    conn.execute(
-        "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
-        ("User Two", "two@outflow.com", "dummy_hash")
-    )
-    # Insert Expense for User 2 (user_id = 2)
-    cur = conn.execute(
-        "INSERT INTO expenses (user_id, amount, category, date, description) VALUES (?, ?, ?, ?, ?)",
-        (2, 100.0, "Food", "2026-06-25", "Secret Lunch")
-    )
-    secret_expense_id = cur.lastrowid
-    conn.commit()
+    with conn:
+        with conn.cursor() as cur:
+            # Insert User 2
+            cur.execute(
+                "INSERT INTO users (name, email, password_hash) VALUES (%s, %s, %s) RETURNING id",
+                ("User Two", "two@outflow.com", "dummy_hash")
+            )
+            user_two_id = cur.fetchone()[0]
+            # Insert Expense for User 2 (user_id = 2)
+            cur.execute(
+                "INSERT INTO expenses (user_id, amount, category, date, description) VALUES (%s, %s, %s, %s, %s) RETURNING id",
+                (user_two_id, 100.0, "Food", "2026-06-25", "Secret Lunch")
+            )
+            secret_expense_id = cur.fetchone()[0]
     conn.close()
 
     with app.test_client() as client:
@@ -94,7 +105,9 @@ def test_edit_expense_get_authenticated():
         
         # Get one of the seeded expenses (id = 1)
         conn = get_db()
-        expense = conn.execute("SELECT * FROM expenses WHERE id = 1").fetchone()
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM expenses WHERE id = %s", (1,))
+            expense = cur.fetchone()
         conn.close()
         
         response = client.get("/expenses/1/edit")
@@ -132,7 +145,9 @@ def test_edit_expense_post_valid_data():
         
         # Verify expense is updated in DB
         conn = get_db()
-        updated_expense = conn.execute("SELECT * FROM expenses WHERE id = 1").fetchone()
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM expenses WHERE id = 1")
+            updated_expense = cur.fetchone()
         conn.close()
         
         assert updated_expense is not None
