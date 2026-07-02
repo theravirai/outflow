@@ -1,18 +1,27 @@
 import pytest
+import os
 from datetime import date
 from app import app
 from database.db import get_db, init_db, seed_db
 
 @pytest.fixture(autouse=True)
-def setup_test_db(monkeypatch, tmp_path):
-    """Sets up a temporary SQLite database for testing and overrides the path."""
-    db_file = tmp_path / "test_expense_tracker.db"
+def setup_test_db(monkeypatch):
+    """Sets up a test PostgreSQL database for testing."""
+    test_db_url = os.environ.get("DATABASE_URL_TEST")
+    if not test_db_url:
+        pytest.fail("DATABASE_URL_TEST environment variable is not set. Testing requires a PostgreSQL database.")
     
-    monkeypatch.setattr("database.db.DB_PATH", str(db_file))
+    monkeypatch.setattr("database.db.DATABASE_URL", test_db_url)
     
     init_db()
-    seed_db()
     
+    conn = get_db()
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute("TRUNCATE TABLE users, expenses RESTART IDENTITY CASCADE;")
+    conn.close()
+    
+    seed_db()
     yield
 
 def test_add_expense_route_unauthenticated():
@@ -69,8 +78,9 @@ def test_add_expense_post_valid_data():
         
         # Verify initial expense count for demo user (user_id = 1 has 8 seeded expenses)
         conn = get_db()
-        cursor = conn.execute("SELECT COUNT(*) as count FROM expenses WHERE user_id = 1")
-        initial_count = cursor.fetchone()["count"]
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) as count FROM expenses WHERE user_id = 1")
+            initial_count = cur.fetchone()["count"]
         assert initial_count == 8
         conn.close()
         
@@ -91,17 +101,18 @@ def test_add_expense_post_valid_data():
         
         # Verify expense exists in DB
         conn = get_db()
-        cursor = conn.execute("SELECT * FROM expenses WHERE user_id = 1 ORDER BY id DESC LIMIT 1")
-        new_expense = cursor.fetchone()
-        assert new_expense is not None
-        assert new_expense["amount"] == 75.50
-        assert new_expense["category"] == "Shopping"
-        assert new_expense["date"] == "2026-06-20"
-        assert new_expense["description"] == "New shoes"
-        
-        # Total count should be 9 now
-        cursor = conn.execute("SELECT COUNT(*) as count FROM expenses WHERE user_id = 1")
-        assert cursor.fetchone()["count"] == 9
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM expenses WHERE user_id = 1 ORDER BY id DESC LIMIT 1")
+            new_expense = cur.fetchone()
+            assert new_expense is not None
+            assert new_expense["amount"] == 75.50
+            assert new_expense["category"] == "Shopping"
+            assert new_expense["date"] == "2026-06-20"
+            assert new_expense["description"] == "New shoes"
+            
+            # Total count should be 9 now
+            cur.execute("SELECT COUNT(*) as count FROM expenses WHERE user_id = 1")
+            assert cur.fetchone()["count"] == 9
         conn.close()
 
 def test_add_expense_post_validation_errors():

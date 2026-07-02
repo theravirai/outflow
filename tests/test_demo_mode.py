@@ -1,13 +1,24 @@
 import pytest
+import os
 from app import app
 from database.db import get_db, init_db, seed_db
 
 @pytest.fixture(autouse=True)
-def setup_test_db(monkeypatch, tmp_path):
-    """Sets up a temporary SQLite database for testing and overrides the path."""
-    db_file = tmp_path / "test_expense_tracker.db"
-    monkeypatch.setattr("database.db.DB_PATH", str(db_file))
+def setup_test_db(monkeypatch):
+    """Sets up a test PostgreSQL database for testing."""
+    test_db_url = os.environ.get("DATABASE_URL_TEST")
+    if not test_db_url:
+        pytest.fail("DATABASE_URL_TEST environment variable is not set. Testing requires a PostgreSQL database.")
+    
+    monkeypatch.setattr("database.db.DATABASE_URL", test_db_url)
     init_db()
+    
+    conn = get_db()
+    with conn:
+        with conn.cursor() as cur:
+            cur.execute("TRUNCATE TABLE users, expenses RESTART IDENTITY CASCADE;")
+    conn.close()
+    
     seed_db()
     yield
 
@@ -33,13 +44,16 @@ def test_demo_login_flow():
             
         # Verify the database has the new user and expenses
         conn = get_db()
-        user = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
-        assert user is not None
-        assert user["name"] == "Demo Mode"
-        assert user["email"].startswith("demo_session_")
-        
-        expenses_count = conn.execute("SELECT COUNT(*) as count FROM expenses WHERE user_id = ?", (user_id,)).fetchone()["count"]
-        assert expenses_count == 47  # Total seeded demo expenses
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+            user = cur.fetchone()
+            assert user is not None
+            assert user["name"] == "Demo Mode"
+            assert user["email"].startswith("demo_session_")
+            
+            cur.execute("SELECT COUNT(*) as count FROM expenses WHERE user_id = %s", (user_id,))
+            expenses_count = cur.fetchone()["count"]
+            assert expenses_count == 47  # Total seeded demo expenses
         conn.close()
 
 def test_demo_isolation():

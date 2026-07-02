@@ -6,17 +6,18 @@ import math
 from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from database.db import create_expense, create_user, get_user_by_email, init_db, seed_db, get_expense_by_id, update_expense, delete_expense as db_delete_expense, cleanup_old_demo_users, create_demo_user
+from database.db import create_expense, create_user, get_user_by_email, init_db, seed_db, get_expense_by_id, update_expense, delete_expense as db_delete_expense, cleanup_old_demo_users, create_demo_user, IS_TESTING, DatabaseConnectionError
 from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown
 
 app = Flask(__name__)
 app.secret_key = "dev-secret-change-in-prod"
 
-VALID_CATEGORIES = ["Food", "Transport", "Bills", "Health", "Healthcare", "Travel", "Entertainment", "Shopping", "Other"]
+@app.errorhandler(DatabaseConnectionError)
+def handle_database_connection_error(e):
+    app.logger.error(f"Database connection error: {e}")
+    return render_template("db_error.html", error_message=str(e)), 503
 
-with app.app_context():
-    init_db()
-    seed_db()
+VALID_CATEGORIES = ["Food", "Transport", "Bills", "Health", "Healthcare", "Travel", "Entertainment", "Shopping", "Other"]
 
 
 @app.before_request

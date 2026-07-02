@@ -43,10 +43,11 @@ outflow/
 ## Tech constraints
 
 - **Flask only** — no FastAPI, no Django, no other web frameworks
-- **SQLite only** — no PostgreSQL, no SQLAlchemy ORM, no external DB
+- **PostgreSQL only** — database connection via environment variables `DATABASE_URL` (app) and `DATABASE_URL_TEST` (pytest), no SQLAlchemy ORM
 - **Vanilla JS only** — no React, no jQuery, no npm packages
-- **No new pip packages** — work within `requirements.txt` as-is unless explicitly told otherwise
+- **No new pip packages** — work within `requirements.txt` as-is (which includes psycopg2-binary and python-dotenv)
 - Python 3.10+ assumed — f-strings and `match` statements are fine
+
 
 ---
 
@@ -100,7 +101,8 @@ pytest -s
 - **Never install new packages** mid-feature without flagging it — keep `requirements.txt` in sync
 - **Never use JS frameworks** — the frontend is intentionally vanilla
 - **`database/db.py` is currently empty** — do not assume helpers exist until the step that implements them
-- **FK enforcement is manual** — SQLite foreign keys are off by default; `get_db()` must run `PRAGMA foreign_keys = ON` on every connection
+- **FK enforcement is automatic** — PostgreSQL enforces foreign key constraints natively by default.
+
 - The app runs on **port 5001**, not the Flask default 5000 — don't change this
 - We are using euro as a currency everywhere.
 
