@@ -44,7 +44,7 @@ jobs:
           DATABASE_URL_TEST: postgresql://postgres:postgrespassword@localhost:5432/outflow_test
           SECRET_KEY: test-secret-key-123456
         run: |
-          pytest
+          python -m pytest
 
   deploy:
     needs: test
