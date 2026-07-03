@@ -1,6 +1,6 @@
 # Outflow
 
-Track expenses, understand spending habits, and visualize where your money goes. Outflow is a lightweight personal expense tracker designed for simplicity, speed, and privacy. It runs as a self-contained Flask application backed by SQLite, eliminating complex database setup while maintaining data integrity through relational constraints.
+Track expenses, understand spending habits, and visualize where your money goes. Outflow is a lightweight personal expense tracker designed for simplicity, speed, and privacy. It is powered by a Flask backend and backed by a PostgreSQL database, ensuring robust data management and high performance.
 
 <!-- ## Live Demo
 
@@ -16,6 +16,7 @@ cd outflow
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
+cp .env.example .env      # Configure your DATABASE_URL and DATABASE_URL_TEST
 python app.py
 ```
 ---
@@ -59,7 +60,7 @@ Outflow features a dedicated **Demo Mode** designed to allow developers and pros
 - **Werkzeug:** Cryptographic password hashing and validation.
 
 ### Database
-- **SQLite:** Serverless relational database engine storing application and transaction data.
+- **PostgreSQL:** Robust relational database storing application and transaction data (compatible with Neon and local instances).
 - **Native SQL:** All queries are written in raw SQL using parameterized query structures to prevent SQL injection vulnerabilities.
 
 ### Testing
@@ -72,15 +73,15 @@ Outflow features a dedicated **Demo Mode** designed to allow developers and pros
 
 - [app.py](/outflow/app.py): Application configuration, routing, and request handling.
 - [database/](/outflow/database): Core database module.
-  - [db.py](/outflow/database/db.py): Database connection lifecycle, schema initialization, and demo session seeding.
-  - [queries.py](/outflow/database/queries.py): Relational SQL queries for dashboard statistics and data retrieval.
+- [database/db.py](/outflow/database/db.py): Database connection lifecycle, schema initialization, and demo session seeding.
+- [database/queries.py](/outflow/database/queries.py): Relational SQL queries for dashboard statistics and data retrieval.
 - [static/](/outflow/static): Frontend static assets.
-  - [css/](/outflow/static/css): Stylesheets containing custom design variables and layout rules.
-    - [style.css](/outflow/static/css/style.css): Core variables, typography, and base layout styles.
-    - [landing.css](/outflow/static/css/landing.css): Styles specific to the public landing page.
-    - [profile.css](/outflow/static/css/profile.css): Grid definitions, tables, and analytics modules for the user dashboard.
-    - [expense.css](/outflow/static/css/expense.css): Form component styling.
-  - [js/](/outflow/static/js): Client-side script directory containing global script files.
+- [static/css/](/outflow/static/css): Stylesheets containing custom design variables and layout rules.
+  - [style.css](/outflow/static/css/style.css): Core variables, typography, and base layout styles.
+  - [landing.css](/outflow/static/css/landing.css): Styles specific to the public landing page.
+  - [profile.css](/outflow/static/css/profile.css): Grid definitions, tables, and analytics modules for the user dashboard.
+  - [expense.css](/outflow/static/css/expense.css): Form component styling.
+- [static/js/](/outflow/static/js): Client-side script directory containing global script files.
 - [templates/](/outflow/templates): Server-rendered templates.
   - [base.html](/outflow/templates/base.html): Primary HTML structure including navigation headers, messages, and footers.
 - [tests/](/outflow/tests): Automated unit and integration test suite.
@@ -93,6 +94,7 @@ Outflow features a dedicated **Demo Mode** designed to allow developers and pros
 ### Prerequisites
 - Python 3.10 or higher
 - Git
+- PostgreSQL instance (local server or hosted, e.g., [Neon](https://neon.tech))
 
 ### Step-by-Step Setup
 
@@ -114,28 +116,47 @@ Outflow features a dedicated **Demo Mode** designed to allow developers and pros
    pip install -r requirements.txt
    ```
 
-4. **Verify the installation by running the test suite:**
+4. **Configure Environment Variables:**
+   Copy `.env.example` to create a `.env` file:
+   ```bash
+   cp .env.example .env
+   ```
+   Open the `.env` file and set the following database connection variables:
+   - Set `DATABASE_URL` to your development PostgreSQL connection string.
+   - Set `DATABASE_URL_TEST` to a separate test PostgreSQL database connection string (mandatory for running tests).
+
+5. **Migrate existing SQLite data (Optional):**
+   If you have a legacy SQLite database (`expense_tracker.db`), migrate its data directly to your PostgreSQL database by running:
+   ```bash
+   python migrate_to_pg.py
+   ```
+
+6. **Verify the installation by running the test suite:**
+   > [!IMPORTANT]
+   > The test suite requires `DATABASE_URL_TEST` to be set in your `.env`. Running the tests will automatically truncate and re-seed the test database.
    ```bash
    pytest
    ```
 
-5. **Start the local development server:**
+7. **Start the local development server:**
    ```bash
-   python app.py
+   python3 app.py
    ```
    *Note: The application is configured to run on port 5001.*
 
-6. **Access the application:**
-   Open [http://localhost:5001](http://localhost:5001) in your browser. The SQLite database file (`expense_tracker.db`) will be automatically created, initialized, and seeded with development mock data upon startup.
+8. **Access the application:**
+   Open [http://localhost:5001](http://localhost:5001) in your browser. The database tables will be automatically created and seeded with demo data upon startup if the database is empty.
 
 ---
 
 ## Environment Variables
 
-Outflow is configured to run out-of-the-box with secure defaults for local development. For deployment to other environments, configure the following settings:
+Configure the following settings in your `.env` file:
 
 | Variable | Description | Required | Default / Recommended |
 |---|---|---|---|
+| `DATABASE_URL` | Connection string for the PostgreSQL application database. | Yes | `postgresql://postgres:postgres@localhost:5432/outflow` |
+| `DATABASE_URL_TEST` | Connection string for the PostgreSQL test database (wiped and seeded on test runs). | Yes | `postgresql://postgres:postgres@localhost:5432/outflow_test` |
 | `SECRET_KEY` | Used by Flask to cryptographically sign session cookies. | No (Dev fallback) | Generate a secure random hex string for production. |
 | `FLASK_DEBUG` | Controls the execution behavior of the Flask interactive debugger. | No | `False` in production; `True` during active development. |
 
@@ -146,8 +167,8 @@ Outflow is configured to run out-of-the-box with secure defaults for local devel
 ### Automated Database Bootstrapping
 To reduce configuration friction, the application checks for database tables and seeds initial development data automatically upon application startup. This guarantees the server is immediately functional upon executing `python app.py`.
 
-### Strict Relational Integrity
-By default, SQLite does not enforce foreign key relationships. Outflow forces database integrity by executing `PRAGMA foreign_keys = ON` on every connection wrapper returned by `get_db()`. This guarantees that deleting a user or transaction respects structural relational boundaries.
+### Native Referencing & Foreign Keys
+Outflow relies on native PostgreSQL foreign key constraints to ensure strong referential integrity. When user or expense records are deleted, database cascades and constraints are enforced natively.
 
 ### Database-Level Aggregation
 Dashboard data is computed dynamically on the database level. Queries accept optional date boundaries, enabling the database engine to handle aggregation, sums, and category sorting directly. This keeps the Flask application controller thin and focused solely on HTTP handling.
@@ -157,5 +178,3 @@ To showcase clean DOM structure and styling proficiency, the application relies 
 
 ### Anti-FOUC Theme Engine
 To prevent the "Flash of Unstyled Content" (FOUC) when loading in Dark Mode, a blocking inline script in the `<head>` evaluates `localStorage` and OS preferences before the page elements render. All styling overrides are applied via CSS variables dynamically toggled on the `<html>` root element.
-
-

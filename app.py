@@ -1,4 +1,4 @@
-import sqlite3
+import psycopg2
 from datetime import date, timedelta
 import calendar
 import math
@@ -93,7 +93,7 @@ def register():
     password_hash = generate_password_hash(password)
     try:
         create_user(name, email, password_hash)
-    except sqlite3.IntegrityError:
+    except psycopg2.IntegrityError:
         return _form_error("An account with that email already exists.")
 
     flash("Account created! Please sign in.")
