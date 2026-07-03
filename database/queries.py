@@ -19,17 +19,8 @@ def get_user_by_id(user_id):
         
         # Parse created_at and format as "Month YYYY"
         member_since = "—"
-        if created_at:
-            if isinstance(created_at, datetime):
-                member_since = created_at.strftime("%B %Y")
-            else:
-                for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d"):
-                    try:
-                        dt = datetime.strptime(created_at, fmt)
-                        member_since = dt.strftime("%B %Y")
-                        break
-                    except ValueError:
-                        continue
+        if created_at and isinstance(created_at, datetime):
+            member_since = created_at.strftime("%B %Y")
         
         # Generate initials
         parts = name.split()

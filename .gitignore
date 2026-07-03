@@ -1,7 +1,38 @@
+# Virtual environments
 venv/
+.venv/
+env/
+
+# Databases
 expense_tracker.db
+*.db
+
+# Environment files
+.env
+
+# Pytest cache and test artifacts
+.pytest_cache/
+.pytest/
+
+# Python build and cache artifacts
 __pycache__/
 *.pyc
 *.pyo
-.env
+*.pyd
+.ipynb_checkpoints/
+
+# IDE and Editor configurations
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# System files
 .DS_Store
+Thumbs.db
+
+# Log files
+*.log

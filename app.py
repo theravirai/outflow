@@ -12,7 +12,7 @@ load_dotenv()
 from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from database.db import create_expense, create_user, get_user_by_email, init_db, seed_db, get_expense_by_id, update_expense, delete_expense as db_delete_expense, cleanup_old_demo_users, create_demo_user, IS_TESTING, DatabaseConnectionError
+from database.db import create_expense, create_user, get_user_by_email, get_expense_by_id, update_expense, delete_expense as db_delete_expense, cleanup_old_demo_users, create_demo_user, IS_TESTING, DatabaseConnectionError
 from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown
 
 app = Flask(__name__)
@@ -53,6 +53,49 @@ def handle_database_connection_error(e):
 
 VALID_CATEGORIES = ["Food", "Transport", "Bills", "Health", "Healthcare", "Travel", "Entertainment", "Shopping", "Other"]
 
+def validate_expense_form(form_data):
+    """Parses and validates expense form inputs.
+    Returns a tuple: (amount, category, date_str, description, error_message)
+    """
+    amount_str = form_data.get("amount", "").strip()
+    category = form_data.get("category", "").strip()
+    date_str = form_data.get("date", "").strip()
+    description = form_data.get("description", "").strip()
+
+    error = None
+    amount = None
+
+    if not amount_str:
+        error = "Amount is required."
+    else:
+        try:
+            amount = float(amount_str)
+            if not math.isfinite(amount) or amount <= 0:
+                error = "Amount must be greater than 0."
+        except ValueError:
+            error = "Amount must be a valid number."
+
+    if not error:
+        if not category:
+            error = "Category is required."
+        elif category not in VALID_CATEGORIES:
+            error = "Invalid category selected."
+
+    if not error:
+        if not date_str:
+            error = "Date is required."
+        else:
+            try:
+                date.fromisoformat(date_str)
+            except ValueError:
+                error = "Date must be in YYYY-MM-DD format."
+
+    if not error:
+        if len(description) > 200:
+            error = "Description must not exceed 200 characters."
+
+    return amount, category, date_str, description, error
+
 
 @app.before_request
 def check_demo_expiry():
@@ -70,8 +113,6 @@ def check_demo_expiry():
 
 @app.route("/")
 def landing():
-    # if session.get("user_id"):
-    #     return redirect(url_for("profile"))
     return render_template("landing.html")
 
 
@@ -261,49 +302,13 @@ def add_expense():
         return render_template("add_expense.html", date=default_date)
 
     # POST method: process submission
-    amount_str = request.form.get("amount", "").strip()
-    category = request.form.get("category", "").strip()
-    date_str = request.form.get("date", "").strip()
-    description = request.form.get("description", "").strip()
-
-    # Validation checks
-    error = None
-
-    amount = None
-    if not amount_str:
-        error = "Amount is required."
-    else:
-        try:
-            amount = float(amount_str)
-            if not math.isfinite(amount) or amount <= 0:
-                error = "Amount must be greater than 0."
-        except ValueError:
-            error = "Amount must be a valid number."
-
-    if not error:
-        if not category:
-            error = "Category is required."
-        elif category not in VALID_CATEGORIES:
-            error = "Invalid category selected."
-
-    if not error:
-        if not date_str:
-            error = "Date is required."
-        else:
-            try:
-                date.fromisoformat(date_str)
-            except ValueError:
-                error = "Date must be in YYYY-MM-DD format."
-
-    if not error:
-        if len(description) > 200:
-            error = "Description must not exceed 200 characters."
+    amount, category, date_str, description, error = validate_expense_form(request.form)
 
     if error:
         return render_template(
             "add_expense.html",
             error=error,
-            amount=amount_str,
+            amount=request.form.get("amount", ""),
             category=category,
             date=date_str,
             description=description
@@ -339,50 +344,14 @@ def edit_expense(id):
         )
 
     # POST method: process submission
-    amount_str = request.form.get("amount", "").strip()
-    category = request.form.get("category", "").strip()
-    date_str = request.form.get("date", "").strip()
-    description = request.form.get("description", "").strip()
-
-    # Validation checks
-    error = None
-
-    amount = None
-    if not amount_str:
-        error = "Amount is required."
-    else:
-        try:
-            amount = float(amount_str)
-            if not math.isfinite(amount) or amount <= 0:
-                error = "Amount must be greater than 0."
-        except ValueError:
-            error = "Amount must be a valid number."
-
-    if not error:
-        if not category:
-            error = "Category is required."
-        elif category not in VALID_CATEGORIES:
-            error = "Invalid category selected."
-
-    if not error:
-        if not date_str:
-            error = "Date is required."
-        else:
-            try:
-                date.fromisoformat(date_str)
-            except ValueError:
-                error = "Date must be in YYYY-MM-DD format."
-
-    if not error:
-        if len(description) > 200:
-            error = "Description must not exceed 200 characters."
+    amount, category, date_str, description, error = validate_expense_form(request.form)
 
     if error:
         return render_template(
             "edit_expense.html",
             expense=expense,
             error=error,
-            amount=amount_str,
+            amount=request.form.get("amount", ""),
             category=category,
             date=date_str,
             description=description
