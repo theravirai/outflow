@@ -178,3 +178,20 @@ To showcase clean DOM structure and styling proficiency, the application relies 
 
 ### Anti-FOUC Theme Engine
 To prevent the "Flash of Unstyled Content" (FOUC) when loading in Dark Mode, a blocking inline script in the `<head>` evaluates `localStorage` and OS preferences before the page elements render. All styling overrides are applied via CSS variables dynamically toggled on the `<html>` root element.
+
+<!-- ---
+
+## Deployment
+
+Outflow is fully compatible with modern PaaS platforms like [Render](https://render.com).
+
+### Render Configuration
+When setting up a Web Service on Render, configure the following parameters:
+
+- **Environment**: `Python`
+- **Build Command**: `pip install -r requirements.txt`
+- **Start Command**: `gunicorn app:app`
+- **Environment Variables**:
+  - `DATABASE_URL`: Set to your production Neon PostgreSQL connection string.
+  - `SECRET_KEY`: Set to a secure, randomly generated hex string.
+  - `FLASK_DEBUG`: Set to `false`. -->
