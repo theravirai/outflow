@@ -1,7 +1,13 @@
+import os
+import secrets
 import psycopg2
 from datetime import date, timedelta
 import calendar
 import math
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -10,7 +16,35 @@ from database.db import create_expense, create_user, get_user_by_email, init_db,
 from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown
 
 app = Flask(__name__)
-app.secret_key = "dev-secret-change-in-prod"
+
+# Enforce SECRET_KEY always exists
+SECRET_KEY = os.environ.get("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY environment variable is missing.")
+
+app.secret_key = SECRET_KEY
+
+# CSRF Protection Setup
+@app.before_request
+def ensure_csrf_token():
+    if "csrf_token" not in session:
+        session["csrf_token"] = secrets.token_hex(32)
+
+@app.context_processor
+def inject_csrf_token():
+    def csrf_token_input():
+        return f'<input type="hidden" name="csrf_token" value="{session.get("csrf_token", "")}">'
+    return dict(csrf_token=lambda: session.get("csrf_token", ""), csrf_token_input=csrf_token_input)
+
+@app.before_request
+def validate_csrf():
+    if IS_TESTING:
+        return
+    if request.method in ("POST", "PUT", "DELETE", "PATCH"):
+        token = request.form.get("csrf_token") or request.headers.get("X-CSRF-Token")
+        expected_token = session.get("csrf_token")
+        if not expected_token or not token or not secrets.compare_digest(expected_token, token):
+            abort(400, description="CSRF token validation failed.")
 
 @app.errorhandler(DatabaseConnectionError)
 def handle_database_connection_error(e):
@@ -360,7 +394,7 @@ def edit_expense(id):
     return redirect(url_for("profile"))
 
 
-@app.route("/expenses/<int:id>/delete")
+@app.route("/expenses/<int:id>/delete", methods=["POST"])
 def delete_expense(id):
     user_id = session.get("user_id")
     if not user_id:
@@ -379,4 +413,5 @@ def delete_expense(id):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5001)
+    flask_debug = os.environ.get("FLASK_DEBUG", "false").lower() in ("true", "1")
+    app.run(debug=flask_debug, port=5001)

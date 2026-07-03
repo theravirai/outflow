@@ -18,6 +18,7 @@
             {% endif %}
 
             <form method="POST" action="{{ url_for('register') }}">
+                {{ csrf_token_input() | safe }}
                 <div class="form-group">
                     <label for="name">Full name</label>
                     <input type="text" id="name" name="name"

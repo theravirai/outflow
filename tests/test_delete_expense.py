@@ -24,9 +24,9 @@ def setup_test_db(monkeypatch):
     yield
 
 def test_delete_expense_route_unauthenticated():
-    """Unauthenticated GET /expenses/<id>/delete should redirect to /login."""
+    """Unauthenticated POST /expenses/<id>/delete should redirect to /login."""
     with app.test_client() as client:
-        response = client.get("/expenses/1/delete")
+        response = client.post("/expenses/1/delete")
         assert response.status_code == 302
         assert "/login" in response.headers["Location"]
 
@@ -39,7 +39,7 @@ def test_delete_expense_nonexistent():
             "password": "demo123"
         })
         
-        response = client.get("/expenses/9999/delete")
+        response = client.post("/expenses/9999/delete")
         assert response.status_code == 404
 
 def test_delete_expense_unauthorized():
@@ -70,11 +70,11 @@ def test_delete_expense_unauthorized():
         })
         
         # Try to delete User 2's expense
-        response = client.get(f"/expenses/{secret_expense_id}/delete")
+        response = client.post(f"/expenses/{secret_expense_id}/delete")
         assert response.status_code == 403
 
 def test_delete_expense_success():
-    """Successful GET /expenses/<id>/delete deletes the expense, redirects to /profile with flash."""
+    """Successful POST /expenses/<id>/delete deletes the expense, redirects to /profile with flash."""
     with app.test_client() as client:
         # Log in
         client.post("/login", data={
@@ -90,7 +90,7 @@ def test_delete_expense_success():
         conn.close()
         
         # Delete one of the seeded expenses (id = 1)
-        response = client.get("/expenses/1/delete", follow_redirects=True)
+        response = client.post("/expenses/1/delete", follow_redirects=True)
         assert response.status_code == 200
         html = response.data.decode("utf-8")
         

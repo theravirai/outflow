@@ -157,7 +157,7 @@ Configure the following settings in your `.env` file:
 |---|---|---|---|
 | `DATABASE_URL` | Connection string for the PostgreSQL application database. | Yes | `postgresql://postgres:postgres@localhost:5432/outflow` |
 | `DATABASE_URL_TEST` | Connection string for the PostgreSQL test database (wiped and seeded on test runs). | Yes | `postgresql://postgres:postgres@localhost:5432/outflow_test` |
-| `SECRET_KEY` | Used by Flask to cryptographically sign session cookies. | No (Dev fallback) | Generate a secure random hex string for production. |
+| `SECRET_KEY` | Used by Flask to cryptographically sign session cookies. | Yes | Generate a secure random hex string (a default development fallback is set in `.env.example`). |
 | `FLASK_DEBUG` | Controls the execution behavior of the Flask interactive debugger. | No | `False` in production; `True` during active development. |
 
 ---

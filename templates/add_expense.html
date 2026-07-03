@@ -26,6 +26,7 @@
             {% endif %}
 
             <form method="POST" action="{{ url_for('add_expense') }}">
+                {{ csrf_token_input() | safe }}
                 <div class="form-group">
                     <label for="amount">Amount (€)</label>
                     <div class="amount-input-wrapper">
