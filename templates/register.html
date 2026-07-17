@@ -14,7 +14,10 @@
 
         <div class="auth-card">
             {% if error %}
-            <div class="auth-error">{{ error }}</div>
+            <div class="auth-error">
+                <i data-lucide="alert-triangle"></i>
+                <span>{{ error }}</span>
+            </div>
             {% endif %}
 
             <form method="POST" action="{{ url_for('register') }}">
@@ -57,4 +60,37 @@
     </div>
 </section>
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const inputs = document.querySelectorAll('.form-input');
+    inputs.forEach(input => {
+        input.addEventListener('input', () => {
+            if (input.value && input.checkValidity()) {
+                input.classList.add('is-valid');
+            } else {
+                input.classList.remove('is-valid');
+            }
+            
+            // Special check for password match
+            if (input.id === 'confirm_password' || input.id === 'password') {
+                const pass = document.getElementById('password').value;
+                const confirm = document.getElementById('confirm_password').value;
+                const confirmInput = document.getElementById('confirm_password');
+                if (confirm && pass !== confirm) {
+                    confirmInput.classList.remove('is-valid');
+                    confirmInput.setCustomValidity("Passwords don't match");
+                } else {
+                    confirmInput.setCustomValidity("");
+                    if (confirmInput.value && confirmInput.checkValidity()) {
+                        confirmInput.classList.add('is-valid');
+                    }
+                }
+            }
+        });
+    });
+});
+</script>
 {% endblock %}

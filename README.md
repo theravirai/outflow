@@ -27,6 +27,7 @@ python app.py
 - **Categorization:** Classify transactions under pre-defined categories including Food, Transport, Bills, Health, Healthcare, Travel, Entertainment, Shopping, and Other.
 - **Dynamic Date Filtering:** Filter transaction history using quick presets (7 Days, 30 Days, This Month, All Time) or custom date ranges.
 - **Financial Dashboard:** View high-level metrics including total spending, total transactions, and the primary category driving expenditure.
+- **Currency:** All financial metrics and inputs are uniformly handled and displayed in Euros (€).
 - **Category Analytics:** Visualize category-wise spending with proportional percentage breakdowns and formatted metrics.
 - **Responsive Interface:** A clean mobile-responsive layout styled entirely with modular, custom CSS.
 - **Demo Mode:** One-click preview environment populated with realistic multi-month mock data, requiring no account creation.
@@ -66,6 +67,9 @@ Outflow features a dedicated **Demo Mode** designed to allow developers and pros
 ### Testing
 - **pytest:** Automated test framework.
 - **pytest-flask:** Flask-specific test client fixtures.
+
+### CI/CD Pipeline
+- **GitHub Actions:** Configured for manual execution (`workflow_dispatch`) to give developers control over when tests and deployments run, rather than triggering automatically on pushes or pull requests.
 
 ---
 

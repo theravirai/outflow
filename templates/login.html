@@ -16,13 +16,19 @@
             {% with messages = get_flashed_messages() %}
               {% if messages %}
                 {% for message in messages %}
-                  <div class="auth-success">{{ message }}</div>
+                  <div class="auth-success">
+                      <i data-lucide="check-circle"></i>
+                      <span>{{ message }}</span>
+                  </div>
                 {% endfor %}
               {% endif %}
             {% endwith %}
 
             {% if error %}
-            <div class="auth-error">{{ error }}</div>
+            <div class="auth-error">
+                <i data-lucide="alert-triangle"></i>
+                <span>{{ error }}</span>
+            </div>
             {% endif %}
 
             <form method="POST" action="{{ url_for('login') }}">
@@ -51,4 +57,21 @@
     </div>
 </section>
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const inputs = document.querySelectorAll('.form-input');
+    inputs.forEach(input => {
+        input.addEventListener('input', () => {
+            if (input.value && input.checkValidity()) {
+                input.classList.add('is-valid');
+            } else {
+                input.classList.remove('is-valid');
+            }
+        });
+    });
+});
+</script>
 {% endblock %}
