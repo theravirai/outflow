@@ -208,7 +208,7 @@ def terms():
 
 
 # ------------------------------------------------------------------ #
-# Placeholder routes — students will implement these                  #
+# Placeholder routes#
 # ------------------------------------------------------------------ #
 
 @app.route("/logout")
