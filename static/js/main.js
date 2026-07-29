@@ -1,6 +1,15 @@
 // main.js — Theme toggle and client-side page enhancement logic
 
 document.addEventListener("DOMContentLoaded", () => {
+    // Mobile menu toggle
+    const menuBtn = document.querySelector('.mobile-menu-btn');
+    const navMenu = document.getElementById('nav-menu');
+    if (menuBtn && navMenu) {
+        menuBtn.addEventListener('click', () => {
+            navMenu.classList.toggle('is-open');
+        });
+    }
+
     // Theme toggle initialization and event handling
     const toggleBtn = document.getElementById("theme-toggle");
     if (toggleBtn) {

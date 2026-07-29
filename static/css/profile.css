@@ -576,12 +576,21 @@
 /* Responsive                                                          */
 /* ------------------------------------------------------------------ */
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
     .profile-container {
         grid-template-columns: 1fr;
-        gap: 1.5rem;
-        margin: 1.5rem auto;
+        padding: 0 1.5rem;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 767px) {
+    .profile-container {
         padding: 0 1rem;
+        margin: 1rem auto;
     }
     
     .stats-grid {
@@ -605,6 +614,74 @@
     
     .filter-actions .btn {
         flex: 1;
+    }
+
+    .profile-main {
+        min-width: 0;
+    }
+
+    /* Convert table to cards on mobile */
+    .transactions-table, 
+    .transactions-table tbody, 
+    .transactions-table tr, 
+    .transactions-table td {
+        display: block;
+        width: 100%;
+    }
+    
+    .transactions-table thead {
+        display: none;
+    }
+    
+    .transactions-table tr {
+        margin-bottom: 1rem;
+        border: 1px solid var(--border-soft);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        background: var(--paper);
+    }
+    
+    .transactions-table td {
+        border-bottom: none;
+        padding: 0;
+    }
+
+    .transactions-table tr:hover td {
+        background: transparent;
+    }
+
+    .transactions-table td:nth-child(1) { /* Date */
+        width: 100%;
+        margin-bottom: 0.25rem;
+    }
+    
+    .transactions-table td:nth-child(2) { /* Description */
+        width: 100%;
+        margin-bottom: 0.75rem;
+        font-size: 1.05rem;
+    }
+    
+    .transactions-table td:nth-child(3) { /* Category */
+        width: auto;
+    }
+    
+    .transactions-table td:nth-child(4) { /* Amount */
+        width: auto;
+        margin-left: auto;
+        font-size: 1.15rem;
+    }
+    
+    .transactions-table td:nth-child(5) { /* Actions */
+        width: 100%;
+        margin-top: 1rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid var(--border-soft);
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
     }
 }
 

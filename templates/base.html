@@ -41,7 +41,10 @@
                 <span class="brand-icon">◈</span>
                 <span class="brand-name">Outflow</span>
             </a>
-            <div class="nav-links">
+            <button class="mobile-menu-btn" aria-label="Toggle Navigation">
+                <i data-lucide="menu" class="menu-icon"></i>
+            </button>
+            <div class="nav-links" id="nav-menu">
                 {% if session.get('user_id') %}
                     {% if session.get('is_demo') %}
                         <div class="nav-demo-badge">

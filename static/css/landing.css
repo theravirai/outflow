@@ -288,7 +288,13 @@
     text-align: right;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
+    .preview-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 767px) {
     .preview-stats {
         grid-template-columns: 1fr;
         gap: 1rem;
@@ -299,7 +305,22 @@
     }
     
     .hero {
-        padding: 4rem 1.5rem;
-        gap: 3rem;
+        padding: 4rem 1rem;
+        gap: 2rem;
+    }
+    
+    .hero-actions {
+        flex-direction: column;
+        width: 100%;
+        gap: 1rem;
+    }
+    
+    .btn-hero-primary, .btn-hero-secondary {
+        width: 100%;
+    }
+    
+    .chart-row {
+        grid-template-columns: 80px 1fr 60px;
+        gap: 1rem;
     }
 }
