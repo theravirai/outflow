@@ -9,12 +9,18 @@
     <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <script>
         (function() {
+            // Theme initialization
             const savedTheme = localStorage.getItem('theme');
             const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
             if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
                 document.documentElement.setAttribute('data-theme', 'dark');
             } else {
                 document.documentElement.removeAttribute('data-theme');
+            }
+            
+            // Demo banner state initialization to prevent flicker
+            if (sessionStorage.getItem('demoBannerClosed') === 'true') {
+                document.documentElement.classList.add('hide-demo-banner');
             }
         })();
     </script>
@@ -24,7 +30,10 @@
 </head>
 <body>
     {% if session.get('is_demo') %}
-    <div class="demo-banner">
+    <div class="demo-banner" id="demo-banner">
+        <button id="close-demo-banner" class="btn-close-demo" aria-label="Close Demo Banner">
+            <i data-lucide="x"></i>
+        </button>
         <div class="demo-banner-inner">
             <span class="demo-banner-message">
                 <strong class="demo-banner-title">Demo Mode</strong>

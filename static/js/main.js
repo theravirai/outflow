@@ -1,6 +1,35 @@
 // main.js — Theme toggle and client-side page enhancement logic
 
 document.addEventListener("DOMContentLoaded", () => {
+    // Demo Banner logic
+    const demoBanner = document.getElementById('demo-banner');
+    const closeDemoBtn = document.getElementById('close-demo-banner');
+
+    if (demoBanner) {
+        if (sessionStorage.getItem('demoBannerClosed') === 'true') {
+            demoBanner.style.display = 'none';
+        } else if (closeDemoBtn) {
+            closeDemoBtn.addEventListener('click', () => {
+                demoBanner.style.display = 'none';
+                sessionStorage.setItem('demoBannerClosed', 'true');
+            });
+        }
+    }
+
+    // Auto-dismiss flash messages after 4 seconds
+    const flashMessages = document.querySelectorAll('[class*="flash-"]');
+    if (flashMessages.length > 0) {
+        setTimeout(() => {
+            flashMessages.forEach(msg => {
+                msg.classList.add('flash-fade-out');
+                // Remove from DOM after transition completes
+                setTimeout(() => {
+                    msg.remove();
+                }, 500);
+            });
+        }, 4000);
+    }
+
     // Mobile menu toggle
     const menuBtn = document.querySelector('.mobile-menu-btn');
     const navMenu = document.getElementById('nav-menu');
