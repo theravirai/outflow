@@ -15,7 +15,7 @@ from flask import Flask, abort, flash, redirect, render_template, request, sessi
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from database.db import create_expense, create_user, get_user_by_email, get_expense_by_id, update_expense, delete_expense as db_delete_expense, cleanup_old_demo_users, create_demo_user, IS_TESTING, DatabaseConnectionError
-from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown
+from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_transaction_count
 
 app = Flask(__name__)
 
@@ -302,16 +302,38 @@ def profile():
     per_page = 10
     offset = (page - 1) * per_page
 
+    # Category Filter
+    category = request.args.get("category")
+    if category == "all":
+        category = None
+
     user_info = get_user_by_id(user_id)
     summary_stats = get_summary_stats(user_id, start_date=start_date_query, end_date=end_date_query)
     
-    total_transactions = summary_stats["transaction_count"] if summary_stats else 0
+    total_transactions = get_transaction_count(user_id, start_date=start_date_query, end_date=end_date_query, category=category)
     total_pages = (total_transactions + per_page - 1) // per_page
     if total_pages == 0:
         total_pages = 1
         
-    recent_expenses = get_recent_transactions(user_id, limit=per_page, offset=offset, start_date=start_date_query, end_date=end_date_query)
+    recent_expenses = get_recent_transactions(user_id, limit=per_page, offset=offset, start_date=start_date_query, end_date=end_date_query, category=category)
     category_breakdown = get_category_breakdown(user_id, start_date=start_date_query, end_date=end_date_query)
+
+    # Generate pagination pages (1 2 3 ... 15 16 17)
+    def get_pagination_pages(current, total):
+        if total <= 7:
+            return list(range(1, total + 1))
+        pages = set([1, total, current, current - 1, current + 1])
+        pages = sorted([p for p in pages if 1 <= p <= total])
+        result = []
+        prev = 0
+        for p in pages:
+            if p - prev > 1:
+                result.append(None)
+            result.append(p)
+            prev = p
+        return result
+        
+    pagination_pages = get_pagination_pages(page, total_pages)
 
     return render_template(
         "profile.html",
@@ -323,7 +345,9 @@ def profile():
         start_date=start_date_query,
         end_date=end_date_query,
         page=page,
-        total_pages=total_pages
+        total_pages=total_pages,
+        pagination_pages=pagination_pages,
+        category=category or "all"
     )
 
 

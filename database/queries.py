@@ -90,7 +90,30 @@ def get_summary_stats(user_id, start_date=None, end_date=None):
     finally:
         conn.close()
 
-def get_recent_transactions(user_id, limit=10, offset=0, start_date=None, end_date=None):
+def get_transaction_count(user_id, start_date=None, end_date=None, category=None):
+    """Returns the total number of transactions matching the filters."""
+    conn = get_db()
+    try:
+        with conn.cursor() as cur:
+            query = "SELECT COUNT(*) as count FROM expenses WHERE user_id = %s"
+            params = [user_id]
+            if start_date:
+                query += " AND date >= %s"
+                params.append(start_date)
+            if end_date:
+                query += " AND date <= %s"
+                params.append(end_date)
+            if category and category != 'all':
+                query += " AND category = %s"
+                params.append(category)
+                
+            cur.execute(query, params)
+            row = cur.fetchone()
+            return row["count"] if row and row["count"] is not None else 0
+    finally:
+        conn.close()
+
+def get_recent_transactions(user_id, limit=10, offset=0, start_date=None, end_date=None, category=None):
     """Returns a list of dicts, each with id, date, description, category, amount."""
     conn = get_db()
     try:
@@ -107,6 +130,9 @@ def get_recent_transactions(user_id, limit=10, offset=0, start_date=None, end_da
             if end_date:
                 query += " AND date <= %s"
                 params.append(end_date)
+            if category and category != 'all':
+                query += " AND category = %s"
+                params.append(category)
             
             query += " ORDER BY date DESC, id DESC"
             if limit:

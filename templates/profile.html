@@ -39,8 +39,13 @@
             </h3>
             <div class="breakdown-list">
                 {% if category_breakdown %}
+                    <div class="breakdown-item category-filter clickable {% if category == 'all' or not category %}active{% endif %}" data-category="all">
+                        <div class="breakdown-info" style="margin-bottom: 0;">
+                            <span class="breakdown-name font-medium">All Categories</span>
+                        </div>
+                    </div>
                     {% for item in category_breakdown %}
-                    <div class="breakdown-item">
+                    <div class="breakdown-item category-filter clickable {% if category == item.category %}active{% endif %}" data-category="{{ item.category }}">
                         <div class="breakdown-info">
                             <span class="breakdown-name">{{ item.category }}</span>
                             <span class="breakdown-amount tabular-nums">€{{ "%.2f"|format(item.amount) }}</span>
@@ -131,7 +136,7 @@
         </div>
 
         <!-- Transactions History Card -->
-        <div class="profile-card transactions-card">
+        <div class="profile-card transactions-card" id="transactions-widget">
             <div class="card-header-flex">
                 <h3 class="card-title">
                     <i data-lucide="history" class="title-icon"></i>
@@ -191,27 +196,140 @@
             {% if total_pages > 1 %}
             <div class="pagination-container">
                 <div class="pagination">
+                    <!-- Prev -->
                     {% if page > 1 %}
-                    <a href="{{ url_for('profile', preset=preset, start_date=start_date, end_date=end_date, page=page-1) }}" class="btn-pagination">
-                        <i data-lucide="chevron-left"></i> Prev
+                    <a href="{{ url_for('profile', preset=preset, start_date=start_date, end_date=end_date, page=page-1) }}" class="btn-pagination" aria-label="Previous page">
+                        <i data-lucide="chevron-left"></i>
                     </a>
                     {% else %}
-                    <span class="btn-pagination disabled"><i data-lucide="chevron-left"></i> Prev</span>
+                    <span class="btn-pagination disabled"><i data-lucide="chevron-left"></i></span>
                     {% endif %}
                     
-                    <span class="pagination-info">Page {{ page }} of {{ total_pages }}</span>
+                    <!-- Page Numbers -->
+                    <div class="pagination-numbers">
+                        {% for p in pagination_pages %}
+                            {% if p == None %}
+                                <span class="pagination-ellipsis">&hellip;</span>
+                            {% elif p == page %}
+                                <span class="btn-pagination active">{{ p }}</span>
+                            {% else %}
+                                <a href="{{ url_for('profile', preset=preset, start_date=start_date, end_date=end_date, page=p) }}" class="btn-pagination">{{ p }}</a>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
                     
+                    <!-- Next -->
                     {% if page < total_pages %}
-                    <a href="{{ url_for('profile', preset=preset, start_date=start_date, end_date=end_date, page=page+1) }}" class="btn-pagination">
-                        Next <i data-lucide="chevron-right"></i>
+                    <a href="{{ url_for('profile', preset=preset, start_date=start_date, end_date=end_date, page=page+1) }}" class="btn-pagination" aria-label="Next page">
+                        <i data-lucide="chevron-right"></i>
                     </a>
                     {% else %}
-                    <span class="btn-pagination disabled">Next <i data-lucide="chevron-right"></i></span>
+                    <span class="btn-pagination disabled"><i data-lucide="chevron-right"></i></span>
                     {% endif %}
                 </div>
+
+                <!-- Go To Page -->
+                <form method="GET" action="{{ url_for('profile') }}" class="pagination-goto">
+                    {% if preset %}
+                    <input type="hidden" name="preset" value="{{ preset }}">
+                    {% endif %}
+                    {% if start_date %}
+                    <input type="hidden" name="start_date" value="{{ start_date }}">
+                    {% endif %}
+                    {% if end_date %}
+                    <input type="hidden" name="end_date" value="{{ end_date }}">
+                    {% endif %}
+                    <span class="goto-label">Go to page</span>
+                    <input type="number" name="page" min="1" max="{{ total_pages }}" class="goto-input" required>
+                    <button type="submit" class="btn-goto">Go</button>
+                </form>
             </div>
             {% endif %}
         </div>
     </section>
 </div>
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const transactionsWidget = document.getElementById('transactions-widget');
+    
+    // Function to handle AJAX fetch and update
+    const fetchAndUpdate = async (url) => {
+        transactionsWidget.style.opacity = '0.5';
+        transactionsWidget.style.pointerEvents = 'none';
+        
+        try {
+            const response = await fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            const html = await response.text();
+            
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            
+            const newWidget = doc.getElementById('transactions-widget');
+            if (newWidget) {
+                transactionsWidget.innerHTML = newWidget.innerHTML;
+                
+                // Re-initialize lucide icons for newly injected HTML
+                if (window.lucide) {
+                    window.lucide.createIcons({
+                        root: transactionsWidget
+                    });
+                }
+                
+                // Update URL to make it shareable and preserve state on refresh
+                window.history.pushState({}, '', url);
+            }
+        } catch (error) {
+            console.error('Error fetching transactions:', error);
+        } finally {
+            transactionsWidget.style.opacity = '1';
+            transactionsWidget.style.pointerEvents = 'auto';
+        }
+    };
+
+    // Category clicking
+    const categoryFilters = document.querySelectorAll('.category-filter');
+    categoryFilters.forEach(filter => {
+        filter.addEventListener('click', (e) => {
+            const category = filter.getAttribute('data-category');
+            
+            // Update active state visually immediately
+            categoryFilters.forEach(f => f.classList.remove('active'));
+            filter.classList.add('active');
+            
+            // Construct URL while preserving preset/dates
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.set('category', category);
+            currentUrl.searchParams.set('page', '1'); // Reset to page 1 on category change
+            
+            fetchAndUpdate(currentUrl.href);
+        });
+    });
+
+    // Pagination clicking & Go To form (event delegation on widget)
+    transactionsWidget.addEventListener('click', (e) => {
+        const btn = e.target.closest('.btn-pagination');
+        if (btn && !btn.classList.contains('disabled') && !btn.classList.contains('active')) {
+            e.preventDefault();
+            fetchAndUpdate(btn.href);
+        }
+    });
+
+    transactionsWidget.addEventListener('submit', (e) => {
+        const form = e.target.closest('.pagination-goto');
+        if (form) {
+            e.preventDefault();
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.set('page', form.querySelector('input[name="page"]').value);
+            fetchAndUpdate(currentUrl.href);
+        }
+    });
+});
+</script>
+{% endblock %}
 {% endblock %}
