@@ -17,6 +17,24 @@
             <p class="expense-subtitle">Enter the details of your transaction below</p>
         </div>
 
+        <div class="expense-card magic-add-card">
+            <div class="magic-add-header">
+                <i data-lucide="sparkles" class="sparkle-icon"></i>
+                <h2>Magic Add</h2>
+            </div>
+            <p class="magic-add-desc">Type your expense naturally and let AI fill out the form for you.</p>
+            <div class="magic-add-input-group">
+                <input type="text" id="magic-input" class="form-input magic-input" placeholder="e.g., 'Spent €15 on coffee yesterday'" autocomplete="off">
+                <button type="button" id="magic-btn" class="btn-magic">
+                    <i data-lucide="wand-2"></i> <span>Auto-Fill</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="expense-divider">
+            <span>or enter manually</span>
+        </div>
+
         <div class="expense-card">
             {% if error %}
             <div class="error-banner">
@@ -77,4 +95,82 @@
         </div>
     </div>
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const magicInput = document.getElementById('magic-input');
+    const magicBtn = document.getElementById('magic-btn');
+    const magicBtnText = magicBtn.querySelector('span');
+    
+    // Form fields
+    const amountInput = document.getElementById('amount');
+    const categoryInput = document.getElementById('category');
+    const dateInput = document.getElementById('date');
+    const descInput = document.getElementById('description');
+
+    magicBtn.addEventListener('click', async () => {
+        const text = magicInput.value.trim();
+        if (!text) {
+            magicInput.focus();
+            return;
+        }
+
+        // Loading state
+        const originalText = magicBtnText.textContent;
+        magicBtnText.textContent = 'Thinking...';
+        magicBtn.disabled = true;
+
+        try {
+            const response = await fetch('/api/magic-add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ text: text })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to parse expense');
+            }
+
+            // Populate form
+            if (data.amount !== undefined) amountInput.value = data.amount;
+            if (data.category) categoryInput.value = data.category;
+            if (data.date) dateInput.value = data.date;
+            if (data.description) descInput.value = data.description;
+            
+            // Add a brief success flash effect to inputs
+            [amountInput, categoryInput, dateInput, descInput].forEach(el => {
+                if (el && el.value) {
+                    el.style.transition = 'background-color 0.3s';
+                    const originalBg = el.style.backgroundColor || '';
+                    el.style.backgroundColor = 'var(--accent-light)';
+                    setTimeout(() => {
+                        el.style.backgroundColor = originalBg;
+                    }, 500);
+                }
+            });
+
+        } catch (error) {
+            alert('Magic Add failed: ' + error.message);
+        } finally {
+            // Restore state
+            magicBtnText.textContent = originalText;
+            magicBtn.disabled = false;
+        }
+    });
+
+    // Also trigger on Enter key in input
+    magicInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            magicBtn.click();
+        }
+    });
+});
+</script>
 {% endblock %}

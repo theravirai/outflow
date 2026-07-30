@@ -5,11 +5,13 @@ from datetime import date, timedelta
 import calendar
 import math
 from dotenv import load_dotenv
+import json
+from groq import Groq
 
 # Load environment variables
 load_dotenv()
 
-from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
+from flask import Flask, abort, flash, redirect, render_template, request, session, url_for, jsonify
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from database.db import create_expense, create_user, get_user_by_email, get_expense_by_id, update_expense, delete_expense as db_delete_expense, cleanup_old_demo_users, create_demo_user, IS_TESTING, DatabaseConnectionError
@@ -289,6 +291,58 @@ def profile():
         start_date=start_date_query,
         end_date=end_date_query
     )
+
+
+@app.route("/api/magic-add", methods=["POST"])
+def magic_add():
+    user_id = session.get("user_id")
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json()
+    if not data or not data.get("text"):
+        return jsonify({"error": "No text provided"}), 400
+
+    groq_api_key = os.environ.get("GROQ_API_KEY")
+    if not groq_api_key:
+        return jsonify({"error": "Groq API key not configured"}), 500
+
+    try:
+        client = Groq(api_key=groq_api_key)
+        today_date = date.today().isoformat()
+        
+        system_prompt = f"""
+You are an expert expense parser for a fintech app. 
+Extract the details from the user's input into JSON.
+Return ONLY valid JSON. Do not include markdown formatting or explanations.
+
+JSON Schema:
+{{
+  "amount": float (the cost, strictly a number),
+  "category": string (MUST be one of: Food, Transport, Bills, Health, Healthcare, Travel, Entertainment, Shopping, Other),
+  "date": string (YYYY-MM-DD),
+  "description": string (short summary of what the expense was)
+}}
+
+Rules:
+1. Today's date is {today_date}.
+2. If the user says "yesterday", use the date before today.
+3. If the user mentions no date at all, you MUST default to {today_date}.
+"""
+        response = client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": data.get("text")}
+            ],
+            model="llama3-8b-8192",
+            response_format={"type": "json_object"},
+            temperature=0
+        )
+        
+        result_json = json.loads(response.choices[0].message.content)
+        return jsonify(result_json)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/expenses/add", methods=["GET", "POST"])
