@@ -270,3 +270,43 @@
 .expense-divider span {
     padding: 0 1rem;
 }
+
+/* Voice Add Additions */
+.btn-mic {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--ink);
+    border-radius: var(--radius-sm);
+    padding: 0 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-mic:hover {
+    background: var(--paper-subtle);
+    border-color: var(--ink-muted);
+}
+
+.btn-mic.recording {
+    background: var(--danger-light);
+    color: var(--danger);
+    border-color: var(--danger-border);
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.magic-voice-status {
+    font-size: 0.85rem;
+    color: var(--ink-muted);
+    margin-top: 0.5rem;
+    min-height: 1.2rem;
+    text-align: center;
+}

@@ -107,8 +107,11 @@ def get_recent_transactions(user_id, limit=10, start_date=None, end_date=None):
             if end_date:
                 query += " AND date <= %s"
                 params.append(end_date)
-            query += " ORDER BY date DESC, id DESC LIMIT %s"
-            params.append(limit)
+            if limit:
+                query += " ORDER BY date DESC, id DESC LIMIT %s"
+                params.append(limit)
+            else:
+                query += " ORDER BY date DESC, id DESC"
             
             cur.execute(query, params)
             rows = cur.fetchall()

@@ -44,9 +44,30 @@ def validate_csrf():
         return
     if request.method in ("POST", "PUT", "DELETE", "PATCH"):
         token = request.form.get("csrf_token") or request.headers.get("X-CSRF-Token")
+        if request.is_json and not token:
+            token = request.json.get("csrf_token") if request.json else None
         expected_token = session.get("csrf_token")
         if not expected_token or not token or not secrets.compare_digest(expected_token, token):
+            if request.path.startswith("/api/"):
+                return jsonify({"success": False, "error": "CSRF token validation failed."}), 400
             abort(400, description="CSRF token validation failed.")
+
+from werkzeug.exceptions import HTTPException
+
+@app.errorhandler(Exception)
+def handle_api_error(e):
+    if request.path.startswith("/api/"):
+        app.logger.error(f"API Error: {e}")
+        code = 500
+        message = "Internal server error"
+        if isinstance(e, HTTPException):
+            code = e.code
+            message = e.description
+        return jsonify({"success": False, "error": message}), code
+    # For non-API routes, re-raise or let default handle
+    if isinstance(e, HTTPException):
+        return e
+    return "Internal Server Error", 500
 
 @app.errorhandler(DatabaseConnectionError)
 def handle_database_connection_error(e):
@@ -278,7 +299,7 @@ def profile():
 
     user_info = get_user_by_id(user_id)
     summary_stats = get_summary_stats(user_id, start_date=start_date_query, end_date=end_date_query)
-    recent_expenses = get_recent_transactions(user_id, limit=10, start_date=start_date_query, end_date=end_date_query)
+    recent_expenses = get_recent_transactions(user_id, limit=None, start_date=start_date_query, end_date=end_date_query)
     category_breakdown = get_category_breakdown(user_id, start_date=start_date_query, end_date=end_date_query)
 
     return render_template(
@@ -293,19 +314,31 @@ def profile():
     )
 
 
+def validate_ai_expense_data(data):
+    try:
+        amount = float(data.get("amount", 0))
+        if amount <= 0:
+            return False, "Amount must be greater than zero."
+        category = str(data.get("category", ""))
+        if category not in VALID_CATEGORIES:
+            return False, "Invalid category provided."
+        return True, ""
+    except Exception:
+        return False, "Failed to parse required fields."
+
 @app.route("/api/magic-add", methods=["POST"])
 def magic_add():
     user_id = session.get("user_id")
     if not user_id:
-        return jsonify({"error": "Unauthorized"}), 401
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
 
     data = request.get_json()
     if not data or not data.get("text"):
-        return jsonify({"error": "No text provided"}), 400
+        return jsonify({"success": False, "error": "No text provided"}), 400
 
     groq_api_key = os.environ.get("GROQ_API_KEY")
     if not groq_api_key:
-        return jsonify({"error": "Groq API key not configured"}), 500
+        return jsonify({"success": False, "error": "Groq API key not configured"}), 500
 
     try:
         client = Groq(api_key=groq_api_key)
@@ -328,21 +361,98 @@ Rules:
 1. Today's date is {today_date}.
 2. If the user says "yesterday", use the date before today.
 3. If the user mentions no date at all, you MUST default to {today_date}.
+4. The description MUST be a concise 1-3 word summary (e.g., "Coffee", "Groceries", "Movie tickets"). DO NOT copy the user's entire sentence.
 """
         response = client.chat.completions.create(
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": data.get("text")}
             ],
-            model="llama3-8b-8192",
+            model="llama-3.1-8b-instant",
             response_format={"type": "json_object"},
             temperature=0
         )
         
         result_json = json.loads(response.choices[0].message.content)
-        return jsonify(result_json)
+        valid, err_msg = validate_ai_expense_data(result_json)
+        if not valid:
+            return jsonify({"success": False, "error": err_msg}), 400
+        return jsonify({"success": True, "data": result_json})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/magic-voice", methods=["POST"])
+def magic_voice():
+    user_id = session.get("user_id")
+    if not user_id:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+
+    if "audio" not in request.files:
+        return jsonify({"success": False, "error": "No audio file provided"}), 400
+
+    audio_file = request.files["audio"]
+    
+    groq_api_key = os.environ.get("GROQ_API_KEY")
+    if not groq_api_key:
+        return jsonify({"success": False, "error": "API key not configured"}), 500
+
+    try:
+        client = Groq(api_key=groq_api_key)
+        
+        # 1. Transcribe audio
+        audio_content = audio_file.read()
+        transcription = client.audio.transcriptions.create(
+            file=("expense.webm", audio_content),
+            model="whisper-large-v3",
+            prompt="Specify the amount, category, date, and description of the expense.",
+            response_format="json"
+        )
+        
+        transcript_text = transcription.text
+        if not transcript_text.strip():
+            return jsonify({"success": False, "error": "Could not understand audio. Please try again."}), 400
+            
+        # 2. Parse text to JSON
+        today_date = date.today().isoformat()
+        system_prompt = f"""
+You are an expert expense parser for a fintech app. 
+Extract the details from the user's input into JSON.
+Return ONLY valid JSON. Do not include markdown formatting or explanations.
+
+JSON Schema:
+{{
+  "amount": float (the cost, strictly a number),
+  "category": string (MUST be one of: Food, Transport, Bills, Health, Healthcare, Travel, Entertainment, Shopping, Other),
+  "date": string (YYYY-MM-DD),
+  "description": string (short summary of what the expense was)
+}}
+
+Rules:
+1. Today's date is {today_date}.
+2. If the user says "yesterday", use the date before today.
+3. If the user mentions no date at all, you MUST default to {today_date}.
+4. The description MUST be a concise 1-3 word summary (e.g., "Coffee", "Groceries", "Movie tickets"). DO NOT copy the user's entire sentence.
+"""
+        response = client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": transcript_text}
+            ],
+            model="llama-3.1-8b-instant",
+            response_format={"type": "json_object"},
+            temperature=0
+        )
+        
+        result_json = json.loads(response.choices[0].message.content)
+        valid, err_msg = validate_ai_expense_data(result_json)
+        if not valid:
+            return jsonify({"success": False, "error": err_msg}), 400
+            
+        result_json["transcript"] = transcript_text
+        return jsonify({"success": True, "data": result_json})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route("/expenses/add", methods=["GET", "POST"])

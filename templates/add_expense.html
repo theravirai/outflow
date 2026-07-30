@@ -22,13 +22,17 @@
                 <i data-lucide="sparkles" class="sparkle-icon"></i>
                 <h2>Magic Add</h2>
             </div>
-            <p class="magic-add-desc">Type your expense naturally and let AI fill out the form for you.</p>
+            <p class="magic-add-desc">Speak or type your expense, and let AI fill out the form for you.</p>
             <div class="magic-add-input-group">
+                <button type="button" id="magic-mic-btn" class="btn-mic" aria-label="Record Voice">
+                    <i data-lucide="mic"></i>
+                </button>
                 <input type="text" id="magic-input" class="form-input magic-input" placeholder="e.g., 'Spent €15 on coffee yesterday'" autocomplete="off">
                 <button type="button" id="magic-btn" class="btn-magic">
                     <i data-lucide="wand-2"></i> <span>Auto-Fill</span>
                 </button>
             </div>
+            <div id="magic-voice-status" class="magic-voice-status"></div>
         </div>
 
         <div class="expense-divider">
@@ -104,12 +108,50 @@ document.addEventListener('DOMContentLoaded', () => {
     const magicBtn = document.getElementById('magic-btn');
     const magicBtnText = magicBtn.querySelector('span');
     
-    // Form fields
+    const micBtn = document.getElementById('magic-mic-btn');
+    const statusDiv = document.getElementById('magic-voice-status');
+    
     const amountInput = document.getElementById('amount');
     const categoryInput = document.getElementById('category');
     const dateInput = document.getElementById('date');
     const descInput = document.getElementById('description');
+    
+    // Grab CSRF token from the form
+    const csrfInput = document.querySelector('input[name="csrf_token"]');
+    const csrfToken = csrfInput ? csrfInput.value : '';
 
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let isRecording = false;
+
+    // Helper to flash fields green on success
+    const flashFields = () => {
+        [amountInput, categoryInput, dateInput, descInput].forEach(el => {
+            if (el && el.value) {
+                el.style.transition = 'background-color 0.3s';
+                const originalBg = el.style.backgroundColor || '';
+                el.style.backgroundColor = 'var(--accent-light)';
+                setTimeout(() => el.style.backgroundColor = originalBg, 500);
+            }
+        });
+    };
+
+    // Robust API response handler
+    const handleApiResponse = async (response) => {
+        const contentType = response.headers.get("Content-Type");
+        if (!contentType || !contentType.includes("application/json")) {
+            console.error("Non-JSON response received. HTTP Status:", response.status);
+            throw new Error("Received an invalid response from the server. Please try again.");
+        }
+        
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Failed to process request.');
+        }
+        return data.data;
+    };
+
+    // Text Magic Add
     magicBtn.addEventListener('click', async () => {
         const text = magicInput.value.trim();
         if (!text) {
@@ -117,58 +159,110 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Loading state
         const originalText = magicBtnText.textContent;
         magicBtnText.textContent = 'Thinking...';
         magicBtn.disabled = true;
+        statusDiv.textContent = '';
+        statusDiv.style.color = 'var(--ink-muted)';
 
         try {
             const response = await fetch('/api/magic-add', {
                 method: 'POST',
-                headers: {
+                headers: { 
                     'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken
                 },
                 body: JSON.stringify({ text: text })
             });
 
-            const data = await response.json();
+            const data = await handleApiResponse(response);
 
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to parse expense');
-            }
-
-            // Populate form
             if (data.amount !== undefined) amountInput.value = data.amount;
             if (data.category) categoryInput.value = data.category;
             if (data.date) dateInput.value = data.date;
             if (data.description) descInput.value = data.description;
             
-            // Add a brief success flash effect to inputs
-            [amountInput, categoryInput, dateInput, descInput].forEach(el => {
-                if (el && el.value) {
-                    el.style.transition = 'background-color 0.3s';
-                    const originalBg = el.style.backgroundColor || '';
-                    el.style.backgroundColor = 'var(--accent-light)';
-                    setTimeout(() => {
-                        el.style.backgroundColor = originalBg;
-                    }, 500);
-                }
-            });
+            flashFields();
 
         } catch (error) {
-            alert('Magic Add failed: ' + error.message);
+            statusDiv.style.color = 'var(--danger)';
+            statusDiv.textContent = 'Magic Add failed: ' + error.message;
         } finally {
-            // Restore state
             magicBtnText.textContent = originalText;
             magicBtn.disabled = false;
         }
     });
 
-    // Also trigger on Enter key in input
     magicInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
             magicBtn.click();
+        }
+    });
+
+    // Voice Magic Add
+    micBtn.addEventListener('click', async () => {
+        if (!isRecording) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.addEventListener('dataavailable', event => {
+                    audioChunks.push(event.data);
+                });
+
+                mediaRecorder.addEventListener('stop', async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    statusDiv.textContent = "Processing voice...";
+                    statusDiv.style.color = 'var(--ink-muted)';
+                    
+                    const formData = new FormData();
+                    formData.append("audio", audioBlob, "expense.webm");
+
+                    try {
+                        const response = await fetch('/api/magic-voice', {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-Token': csrfToken
+                            },
+                            body: formData
+                        });
+
+                        const data = await handleApiResponse(response);
+
+                        if (data.amount !== undefined) amountInput.value = data.amount;
+                        if (data.category) categoryInput.value = data.category;
+                        if (data.date) dateInput.value = data.date;
+                        if (data.description) descInput.value = data.description;
+                        
+                        statusDiv.style.color = 'var(--ink-muted)';
+                        statusDiv.textContent = `Heard: "${data.transcript || 'Successfully parsed'}"`;
+                        if (data.transcript) magicInput.value = data.transcript;
+                        flashFields();
+
+                    } catch (error) {
+                        statusDiv.style.color = 'var(--danger)';
+                        statusDiv.textContent = 'Voice parsing failed: ' + error.message;
+                    }
+                    
+                    stream.getTracks().forEach(track => track.stop());
+                });
+
+                mediaRecorder.start();
+                isRecording = true;
+                micBtn.classList.add('recording');
+                statusDiv.textContent = "Listening... Click mic again to stop.";
+                statusDiv.style.color = 'var(--ink-muted)';
+
+            } catch (err) {
+                statusDiv.style.color = 'var(--danger)';
+                statusDiv.textContent = "Microphone access denied or not available.";
+            }
+        } else {
+            mediaRecorder.stop();
+            isRecording = false;
+            micBtn.classList.remove('recording');
         }
     });
 });
