@@ -187,6 +187,30 @@
                     </tbody>
                 </table>
             </div>
+            
+            {% if total_pages > 1 %}
+            <div class="pagination-container">
+                <div class="pagination">
+                    {% if page > 1 %}
+                    <a href="{{ url_for('profile', preset=preset, start_date=start_date, end_date=end_date, page=page-1) }}" class="btn-pagination">
+                        <i data-lucide="chevron-left"></i> Prev
+                    </a>
+                    {% else %}
+                    <span class="btn-pagination disabled"><i data-lucide="chevron-left"></i> Prev</span>
+                    {% endif %}
+                    
+                    <span class="pagination-info">Page {{ page }} of {{ total_pages }}</span>
+                    
+                    {% if page < total_pages %}
+                    <a href="{{ url_for('profile', preset=preset, start_date=start_date, end_date=end_date, page=page+1) }}" class="btn-pagination">
+                        Next <i data-lucide="chevron-right"></i>
+                    </a>
+                    {% else %}
+                    <span class="btn-pagination disabled">Next <i data-lucide="chevron-right"></i></span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
         </div>
     </section>
 </div>

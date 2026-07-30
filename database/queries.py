@@ -90,7 +90,7 @@ def get_summary_stats(user_id, start_date=None, end_date=None):
     finally:
         conn.close()
 
-def get_recent_transactions(user_id, limit=10, start_date=None, end_date=None):
+def get_recent_transactions(user_id, limit=10, offset=0, start_date=None, end_date=None):
     """Returns a list of dicts, each with id, date, description, category, amount."""
     conn = get_db()
     try:
@@ -107,11 +107,14 @@ def get_recent_transactions(user_id, limit=10, start_date=None, end_date=None):
             if end_date:
                 query += " AND date <= %s"
                 params.append(end_date)
+            
+            query += " ORDER BY date DESC, id DESC"
             if limit:
-                query += " ORDER BY date DESC, id DESC LIMIT %s"
+                query += " LIMIT %s"
                 params.append(limit)
-            else:
-                query += " ORDER BY date DESC, id DESC"
+            if offset:
+                query += " OFFSET %s"
+                params.append(offset)
             
             cur.execute(query, params)
             rows = cur.fetchall()

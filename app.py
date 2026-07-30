@@ -297,9 +297,20 @@ def profile():
     if preset == "custom" and not start_date_query and not end_date_query:
         preset = "all"
 
+    # Pagination
+    page = request.args.get("page", 1, type=int)
+    per_page = 10
+    offset = (page - 1) * per_page
+
     user_info = get_user_by_id(user_id)
     summary_stats = get_summary_stats(user_id, start_date=start_date_query, end_date=end_date_query)
-    recent_expenses = get_recent_transactions(user_id, limit=None, start_date=start_date_query, end_date=end_date_query)
+    
+    total_transactions = summary_stats["transaction_count"] if summary_stats else 0
+    total_pages = (total_transactions + per_page - 1) // per_page
+    if total_pages == 0:
+        total_pages = 1
+        
+    recent_expenses = get_recent_transactions(user_id, limit=per_page, offset=offset, start_date=start_date_query, end_date=end_date_query)
     category_breakdown = get_category_breakdown(user_id, start_date=start_date_query, end_date=end_date_query)
 
     return render_template(
@@ -310,7 +321,9 @@ def profile():
         category_breakdown=category_breakdown,
         preset=preset,
         start_date=start_date_query,
-        end_date=end_date_query
+        end_date=end_date_query,
+        page=page,
+        total_pages=total_pages
     )
 
 
