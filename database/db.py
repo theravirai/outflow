@@ -169,6 +169,20 @@ def create_user(name, email, password_hash):
         conn.close()
 
 
+def convert_demo_user(user_id, name, email, password_hash):
+    """Upgrades a demo user to a real user by updating their credentials."""
+    conn = get_db()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE users SET name = %s, email = %s, password_hash = %s WHERE id = %s",
+                    (name, email, password_hash, user_id)
+                )
+    finally:
+        conn.close()
+
+
 def create_expense(user_id, amount, category, date, description):
     """Inserts a new expense into the database and returns the new row ID."""
     conn = get_db()

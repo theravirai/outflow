@@ -14,7 +14,7 @@ load_dotenv()
 from flask import Flask, abort, flash, redirect, render_template, request, session, url_for, jsonify
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from database.db import create_expense, create_user, get_user_by_email, get_expense_by_id, update_expense, delete_expense as db_delete_expense, cleanup_old_demo_users, create_demo_user, IS_TESTING, DatabaseConnectionError
+from database.db import create_expense, create_user, convert_demo_user, get_user_by_email, get_expense_by_id, update_expense, delete_expense as db_delete_expense, cleanup_old_demo_users, create_demo_user, IS_TESTING, DatabaseConnectionError
 from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_transaction_count
 
 app = Flask(__name__)
@@ -159,11 +159,11 @@ def demo_login():
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if session.get("user_id"):
-        if session.get("is_demo"):
-            session.clear()
-            flash("Create your own Outflow account to start tracking your personal finances.")
-        else:
+        if not session.get("is_demo"):
             return redirect(url_for("profile"))
+        elif request.method == "GET":
+            flash("Create an account to save your demo transactions and continue tracking.")
+
     if request.method == "GET":
         return render_template("register.html")
 
@@ -190,12 +190,18 @@ def register():
     # Hash password and persist
     password_hash = generate_password_hash(password)
     try:
-        create_user(name, email, password_hash)
+        if session.get("is_demo") and session.get("user_id"):
+            convert_demo_user(session["user_id"], name, email, password_hash)
+            session.pop("is_demo", None)
+            session["user_name"] = name
+            flash("Account created! Your demo transactions have been saved.")
+            return redirect(url_for("profile"))
+        else:
+            create_user(name, email, password_hash)
+            flash("Account created! Please sign in.")
+            return redirect(url_for("login"))
     except psycopg2.IntegrityError:
         return _form_error("An account with that email already exists.")
-
-    flash("Account created! Please sign in.")
-    return redirect(url_for("login"))
 
 
 @app.route("/login", methods=["GET", "POST"])
