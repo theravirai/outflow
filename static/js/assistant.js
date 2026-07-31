@@ -195,6 +195,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 body: JSON.stringify({ text })
             });
+            if (response.status === 429) {
+                removeTyping();
+                appendMessage("You're chatting a bit too fast! Please wait a moment.", 'assistant');
+                return;
+            }
             
             const data = await response.json();
             removeTyping();
@@ -404,6 +409,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             headers: { 'X-CSRF-Token': csrfToken },
                             body: formData
                         });
+                        if (response.status === 429) {
+                            throw new Error("You're chatting a bit too fast! Please wait a moment.");
+                        }
                         const data = await response.json();
                         
                         if (data.success && data.text) {

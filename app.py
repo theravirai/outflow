@@ -17,8 +17,16 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from database.db import create_expense, create_user, convert_demo_user, get_user_by_email, get_expense_by_id, update_expense, delete_expense as db_delete_expense, cleanup_old_demo_users, create_demo_user, IS_TESTING, DatabaseConnectionError
 from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_transaction_count
 from services.ai_assistant import process_user_input
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 app = Flask(__name__)
+
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    storage_uri="memory://",
+)
 
 # Enforce SECRET_KEY always exists
 SECRET_KEY = os.environ.get("SECRET_KEY")
@@ -133,10 +141,10 @@ def check_demo_expiry():
 
 # ------------------------------------------------------------------ #
 # AI Assistant API Routes
-# ------------------------------------------------------------------ #
-
+# ------------------------------------------------------------------ # AI Assistant Routes
 @app.route("/api/assistant", methods=["POST"])
-def assistant_chat():
+@limiter.limit("20 per minute")
+def ai_assistant_chat():
     user_id = session.get("user_id")
     if not user_id:
         return jsonify({"success": False, "error": "Unauthorized"}), 401
@@ -149,7 +157,8 @@ def assistant_chat():
     return jsonify(response)
 
 @app.route("/api/assistant/transcribe", methods=["POST"])
-def assistant_transcribe():
+@limiter.limit("20 per minute")
+def ai_assistant_transcribe():
     user_id = session.get("user_id")
     if not user_id:
         return jsonify({"success": False, "error": "Unauthorized"}), 401
