@@ -2,7 +2,32 @@ import os
 import json
 from datetime import date
 from groq import Groq
+from pydantic import BaseModel, ValidationError
+from typing import Optional
 from database.queries import get_summary_stats, get_category_breakdown, get_recent_transactions
+
+class IntentResponse(BaseModel):
+    intent: str
+
+class AddExpenseResponse(BaseModel):
+    amount: float
+    category: str
+    date: str
+    description: str
+
+class NavigationResponse(BaseModel):
+    url: str
+
+class DeleteExpenseResponse(BaseModel):
+    transaction_id: Optional[int] = None
+    reason: Optional[str] = None
+
+class UpdateExpenseResponse(BaseModel):
+    transaction_id: Optional[int] = None
+    amount: Optional[float] = None
+    category: Optional[str] = None
+    date: Optional[str] = None
+    description: Optional[str] = None
 
 def get_groq_client():
     api_key = os.environ.get("GROQ_API_KEY")
@@ -35,7 +60,8 @@ Return ONLY a JSON object with a single key "intent" whose value is one of the c
     
     try:
         content = json.loads(response.choices[0].message.content)
-        return content.get("intent", "help")
+        parsed = IntentResponse(**content)
+        return parsed.intent
     except Exception:
         return "help"
 
@@ -71,16 +97,25 @@ Important Rules:
         response_format={"type": "json_object"}
     )
     
-    data = json.loads(response.choices[0].message.content)
-    allowed = ["Food", "Transport", "Bills", "Health", "Healthcare", "Travel", "Entertainment", "Shopping", "Other"]
-    if data.get("category") not in allowed:
-        data["category"] = "Other"
+    try:
+        data = json.loads(response.choices[0].message.content)
+        parsed = AddExpenseResponse(**data)
+        data = parsed.model_dump()
         
-    return {
-        "type": "add_expense",
-        "data": data,
-        "message": "I can help with that. Please review and confirm the details below before saving:"
-    }
+        allowed = ["Food", "Transport", "Bills", "Health", "Healthcare", "Travel", "Entertainment", "Shopping", "Other"]
+        if data.get("category") not in allowed:
+            data["category"] = "Other"
+            
+        return {
+            "type": "add_expense",
+            "data": data,
+            "message": "I can help with that. Please review and confirm the details below before saving:"
+        }
+    except Exception:
+        return {
+            "type": "chat",
+            "message": "I couldn't quite understand the expense details. Could you repeat the amount, category, and description clearly?"
+        }
 
 def handle_navigation(user_input):
     client = get_groq_client()
@@ -101,8 +136,13 @@ Return ONLY a JSON object with a single key "url" containing the mapped URL stri
         ],
         response_format={"type": "json_object"}
     )
-    data = json.loads(response.choices[0].message.content)
-    url = data.get("url", "/profile")
+    try:
+        data = json.loads(response.choices[0].message.content)
+        parsed = NavigationResponse(**data)
+        url = parsed.url
+    except Exception:
+        url = "/profile"
+        
     return {
         "type": "navigation",
         "data": {"url": url},
@@ -203,8 +243,15 @@ Return ONLY a JSON object with:
         response_format={"type": "json_object"}
     )
     
-    data = json.loads(response.choices[0].message.content)
-    tx_id = data.get("transaction_id")
+    try:
+        data = json.loads(response.choices[0].message.content)
+        parsed = DeleteExpenseResponse(**data)
+        tx_id = parsed.transaction_id
+    except Exception:
+        return {
+            "type": "chat",
+            "message": "I couldn't quite understand which transaction you meant. Could you be more specific?"
+        }
     
     if not tx_id:
         return {
@@ -262,8 +309,15 @@ Return ONLY a JSON object with:
         response_format={"type": "json_object"}
     )
     
-    data = json.loads(response.choices[0].message.content)
-    tx_id = data.get("transaction_id")
+    try:
+        data = json.loads(response.choices[0].message.content)
+        parsed = UpdateExpenseResponse(**data)
+        tx_id = parsed.transaction_id
+    except Exception:
+        return {
+            "type": "chat",
+            "message": "I couldn't clearly parse the updates. Could you repeat which transaction to edit and what the new values should be?"
+        }
     
     if not tx_id:
         return {
