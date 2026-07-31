@@ -1,0 +1,185 @@
+import os
+import json
+from datetime import date
+from groq import Groq
+from database.queries import get_summary_stats, get_category_breakdown
+
+def get_groq_client():
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        raise ValueError("GROQ_API_KEY not configured")
+    return Groq(api_key=api_key)
+
+def detect_intent(user_input):
+    client = get_groq_client()
+    system_prompt = """
+You are the intent router for Outflow, a personal finance app.
+Classify the user's intent into EXACTLY ONE of the following categories:
+- add_expense: User wants to record a new expense or transaction.
+- dashboard_query: User is asking a question about their past spending, aggregates, categories, or trends.
+- navigation: User wants to navigate to a different page in the app (e.g. profile, add expense, home).
+- help: User is asking for help on how to use the app, categories, or demo mode, or general chat.
+
+Return ONLY a JSON object with a single key "intent" whose value is one of the four categories above.
+"""
+    response = client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_input}
+        ],
+        response_format={"type": "json_object"}
+    )
+    
+    try:
+        content = json.loads(response.choices[0].message.content)
+        return content.get("intent", "help")
+    except Exception:
+        return "help"
+
+def handle_add_expense(user_input):
+    client = get_groq_client()
+    today_date = date.today().isoformat()
+    system_prompt = f"""
+You are an expert expense parser for a fintech app. 
+Extract the details from the user's input into JSON.
+Return ONLY valid JSON.
+
+JSON Schema:
+{{
+  "amount": float (the cost, strictly a number),
+  "category": string (MUST be one of: Food, Transport, Bills, Health, Healthcare, Travel, Entertainment, Shopping, Other),
+  "date": string (YYYY-MM-DD),
+  "description": string (Concise 1-3 word description of the item)
+}}
+
+Important Rules:
+1. If the year/month/date is not specified, assume today is {today_date}. If they say "yesterday", calculate the date relative to {today_date}.
+2. Ensure the category EXACTLY matches one of the allowed options. If unsure, use "Other".
+3. **CRITICAL:** Items like milk, groceries, coffee, restaurants, and eating out MUST be categorized as "Food".
+4. Capitalize the description like a sentence. Limit description to 1-3 words maximum (e.g. "Weekly groceries", "Train ticket", "Starbucks coffee").
+"""
+    
+    response = client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_input}
+        ],
+        response_format={"type": "json_object"}
+    )
+    
+    data = json.loads(response.choices[0].message.content)
+    allowed = ["Food", "Transport", "Bills", "Health", "Healthcare", "Travel", "Entertainment", "Shopping", "Other"]
+    if data.get("category") not in allowed:
+        data["category"] = "Other"
+        
+    return {
+        "type": "add_expense",
+        "data": data,
+        "message": "I can help with that. Please review and confirm the details below before saving:"
+    }
+
+def handle_navigation(user_input):
+    client = get_groq_client()
+    system_prompt = """
+You are a navigation router. Map the user's request to one of the following exact URLs:
+- "/profile" : The dashboard/home/profile showing transactions and charts
+- "/expenses/add" : The page to manually add an expense
+- "/" : The landing page
+- "/logout" : To sign out
+
+Return ONLY a JSON object with a single key "url" containing the mapped URL string.
+"""
+    response = client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_input}
+        ],
+        response_format={"type": "json_object"}
+    )
+    data = json.loads(response.choices[0].message.content)
+    url = data.get("url", "/profile")
+    return {
+        "type": "navigation",
+        "data": {"url": url},
+        "message": "I'm redirecting you there now..."
+    }
+
+def handle_dashboard_query(user_input, user_id):
+    summary = get_summary_stats(user_id)
+    breakdown = get_category_breakdown(user_id)
+    
+    client = get_groq_client()
+    system_prompt = f"""
+You are Outflow's financial assistant. 
+The user is asking a question about their spending. 
+Answer their question using the following aggregated database metrics.
+Do NOT mention that you are reading from a database or JSON. Just answer naturally.
+Keep it concise (max 2-3 paragraphs). Avoid generic AI pleasantries.
+
+Data context:
+- Total Spent All Time: €{summary['total_spent']:.2f}
+- Total Transactions: {summary['transaction_count']}
+- Top Category: {summary['top_category']}
+
+Category Breakdown All Time:
+"""
+    for item in breakdown:
+        system_prompt += f"- {item['category']}: €{item['amount']:.2f}\n"
+
+    response = client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_input}
+        ]
+    )
+    return {
+        "type": "chat",
+        "message": response.choices[0].message.content
+    }
+
+def handle_help(user_input):
+    client = get_groq_client()
+    system_prompt = """
+You are Outflow's helpful personal finance assistant. 
+Answer the user's question about the application. 
+Keep your answer concise (max 3 short paragraphs).
+Do not use generic AI wording. Be professional and helpful.
+
+App Knowledge:
+- Demo Mode: A safe sandbox mode with realistic pre-populated data. Changes are temporary. If a user registers while in demo mode, their demo transactions are permanently saved to their new account.
+- Categories: Outflow supports Food, Transport, Bills, Health, Healthcare, Travel, Entertainment, Shopping, and Other.
+- AI Assistant: You (the assistant) can add expenses automatically, answer questions about spending trends, and help navigate the app.
+- Outflow is a personal finance tracker built to be minimal, fast, and completely focused on privacy.
+"""
+    response = client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_input}
+        ]
+    )
+    return {
+        "type": "chat",
+        "message": response.choices[0].message.content
+    }
+
+def process_user_input(user_input, user_id):
+    try:
+        intent = detect_intent(user_input)
+        if intent == "add_expense":
+            return handle_add_expense(user_input)
+        elif intent == "navigation":
+            return handle_navigation(user_input)
+        elif intent == "dashboard_query":
+            return handle_dashboard_query(user_input, user_id)
+        else:
+            return handle_help(user_input)
+    except Exception as e:
+        return {
+            "type": "error",
+            "message": "I'm unable to reach the AI service right now. Please try again in a moment."
+        }

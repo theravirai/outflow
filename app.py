@@ -16,6 +16,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from database.db import create_expense, create_user, convert_demo_user, get_user_by_email, get_expense_by_id, update_expense, delete_expense as db_delete_expense, cleanup_old_demo_users, create_demo_user, IS_TESTING, DatabaseConnectionError
 from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_transaction_count
+from services.ai_assistant import process_user_input
 
 app = Flask(__name__)
 
@@ -129,6 +130,52 @@ def check_demo_expiry():
             response.delete_cookie("was_demo")
             flash("Your demo session has expired.")
             return response
+
+# ------------------------------------------------------------------ #
+# AI Assistant API Routes
+# ------------------------------------------------------------------ #
+
+@app.route("/api/assistant", methods=["POST"])
+def assistant_chat():
+    user_id = session.get("user_id")
+    if not user_id:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+    
+    data = request.json
+    if not data or not data.get("text"):
+        return jsonify({"success": False, "error": "Missing input text"}), 400
+        
+    response = process_user_input(data["text"], user_id)
+    return jsonify(response)
+
+@app.route("/api/assistant/transcribe", methods=["POST"])
+def assistant_transcribe():
+    user_id = session.get("user_id")
+    if not user_id:
+        return jsonify({"success": False, "error": "Unauthorized"}), 401
+
+    if "audio" not in request.files:
+        return jsonify({"success": False, "error": "No audio file provided"}), 400
+
+    audio_file = request.files["audio"]
+    groq_api_key = os.environ.get("GROQ_API_KEY")
+    if not groq_api_key:
+        return jsonify({"success": False, "error": "API key not configured"}), 500
+
+    try:
+        from groq import Groq
+        client = Groq(api_key=groq_api_key)
+        audio_content = audio_file.read()
+        transcription = client.audio.transcriptions.create(
+            file=("assistant.webm", audio_content),
+            model="whisper-large-v3",
+            prompt="Specify the question, navigation request, or expense details.",
+            response_format="json"
+        )
+        return jsonify({"success": True, "text": transcription.text})
+    except Exception as e:
+        app.logger.error(f"Transcription Error: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 # ------------------------------------------------------------------ #
 # Routes                                                              #

@@ -181,18 +181,88 @@ document.addEventListener('DOMContentLoaded', () => {
         appendMessage(text, 'user');
         showTyping();
 
-        // Step 5 API Placeholder logic
         try {
-            // Check for CSRF token
+            // Check for CSRF token globally
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
             const csrfInput = document.querySelector('input[name="csrf_token"]');
-            const csrfToken = csrfInput ? csrfInput.value : '';
+            const csrfToken = csrfMeta ? csrfMeta.content : (csrfInput ? csrfInput.value : '');
 
-            // TODO: In Step 3-5, this will hit /api/assistant
-            // Mock delay for now
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            const response = await fetch('/api/assistant', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken
+                },
+                body: JSON.stringify({ text })
+            });
+            
+            const data = await response.json();
             removeTyping();
             
-            appendMessage("I am currently in UI construction mode. My brain (the backend AI logic) will be connected in Step 3!", 'assistant');
+            if (data.type === 'error') {
+                appendMessage(data.message, 'assistant');
+            } else if (data.type === 'chat') {
+                appendMessage(data.message, 'assistant');
+            } else if (data.type === 'navigation') {
+                appendMessage(data.message, 'assistant');
+                setTimeout(() => {
+                    window.location.href = data.data.url;
+                }, 1000);
+            } else if (data.type === 'add_expense') {
+                appendMessage(data.message, 'assistant');
+                
+                // Show confirmation card
+                const wrapper = document.createElement('div');
+                wrapper.className = 'chat-message assistant';
+                
+                const card = document.createElement('div');
+                card.className = 'message-bubble confirmation-card';
+                card.innerHTML = `
+                    <strong>New Expense</strong><br>
+                    Amount: €${parseFloat(data.data.amount).toFixed(2)}<br>
+                    Category: ${data.data.category}<br>
+                    Date: ${data.data.date}<br>
+                    Description: ${data.data.description}<br>
+                    <div style="margin-top: 12px; display: flex; gap: 8px;">
+                        <button class="btn btn-primary btn-sm confirm-expense-btn">Confirm & Save</button>
+                    </div>
+                `;
+                
+                wrapper.appendChild(card);
+                messagesContainer.appendChild(wrapper);
+                scrollToBottom();
+                
+                // Add event listener to confirm button
+                card.querySelector('.confirm-expense-btn').addEventListener('click', async (e) => {
+                    e.target.disabled = true;
+                    e.target.textContent = "Saving...";
+                    
+                    const formData = new FormData();
+                    formData.append('amount', data.data.amount);
+                    formData.append('category', data.data.category);
+                    formData.append('date', data.data.date);
+                    formData.append('description', data.data.description);
+                    
+                    try {
+                        const saveResponse = await fetch('/expenses/add', {
+                            method: 'POST',
+                            headers: { 'X-CSRF-Token': csrfToken },
+                            body: formData
+                        });
+                        
+                        if (saveResponse.ok || saveResponse.redirected) {
+                            e.target.textContent = "Saved!";
+                            appendMessage("I've saved that expense for you.", 'assistant');
+                        } else {
+                            e.target.textContent = "Failed";
+                            appendMessage("There was an error saving the expense.", 'assistant');
+                        }
+                    } catch (err) {
+                        e.target.textContent = "Error";
+                        appendMessage("Network error while saving.", 'assistant');
+                    }
+                });
+            }
             
         } catch (error) {
             removeTyping();
@@ -225,13 +295,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     formData.append("audio", audioBlob, "assistant.webm");
 
                     // CSRF Token
+                    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
                     const csrfInput = document.querySelector('input[name="csrf_token"]');
-                    const csrfToken = csrfInput ? csrfInput.value : '';
+                    const csrfToken = csrfMeta ? csrfMeta.content : (csrfInput ? csrfInput.value : '');
 
                     try {
-                        // TODO: Implement /api/assistant/transcribe in backend
-                        chatInput.value = "Voice transcription endpoint pending step 5...";
-                        sendBtn.disabled = false;
+                        const response = await fetch('/api/assistant/transcribe', {
+                            method: 'POST',
+                            headers: { 'X-CSRF-Token': csrfToken },
+                            body: formData
+                        });
+                        const data = await response.json();
+                        
+                        if (data.success && data.text) {
+                            chatInput.value = data.text;
+                            chatInput.dispatchEvent(new Event('input')); // Re-enable send button
+                        } else {
+                            throw new Error(data.error || "Transcription failed");
+                        }
                     } catch (error) {
                         console.error("Transcription failed", error);
                         chatInput.placeholder = "Ask a question...";
