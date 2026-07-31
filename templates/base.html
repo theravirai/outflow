@@ -25,6 +25,9 @@
         })();
     </script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% if session.get('user_id') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/assistant.css') }}">
+    {% endif %}
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
     {% block head %}{% endblock %}
 </head>
@@ -96,8 +99,15 @@
         </div>
     </footer>
 
+    {% if session.get('user_id') %}
+        {% include 'assistant.html' %}
+    {% endif %}
+
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% if session.get('user_id') %}
+    <script src="{{ url_for('static', filename='js/assistant.js') }}"></script>
+    {% endif %}
     <script>
         lucide.createIcons();
     </script>

@@ -1,0 +1,38 @@
+<div id="ai-assistant-widget" class="ai-assistant-widget">
+    <!-- Floating Action Button -->
+    <button id="ai-assistant-fab" class="ai-assistant-fab" aria-label="Ask Outflow AI Assistant">
+        <i data-lucide="sparkles"></i>
+    </button>
+
+    <!-- Slide-up Chat Panel -->
+    <div id="ai-chat-panel" class="ai-chat-panel" aria-hidden="true">
+        <div class="chat-header">
+            <div class="chat-header-title">
+                <i data-lucide="sparkles" class="header-icon"></i>
+                <div>
+                    <h4>Ask Outflow</h4>
+                    <span class="subtitle">Your personal finance assistant</span>
+                </div>
+            </div>
+            <button id="ai-close-btn" class="chat-close-btn" aria-label="Close Assistant">
+                <i data-lucide="x"></i>
+            </button>
+        </div>
+
+        <div id="chat-messages" class="chat-messages">
+            <!-- Initial suggestions will be injected here by JS -->
+        </div>
+
+        <div class="chat-input-area">
+            <form id="ai-chat-form" class="chat-input-form">
+                <button type="button" id="ai-voice-btn" class="chat-voice-btn" aria-label="Voice input" title="Hold to speak">
+                    <i data-lucide="mic"></i>
+                </button>
+                <input type="text" id="ai-chat-input" class="chat-input" placeholder="Ask a question or add an expense..." autocomplete="off" required>
+                <button type="submit" id="ai-send-btn" class="chat-send-btn" aria-label="Send message" disabled>
+                    <i data-lucide="send"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
