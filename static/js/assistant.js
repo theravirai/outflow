@@ -262,6 +262,105 @@ document.addEventListener('DOMContentLoaded', () => {
                         appendMessage("Network error while saving.", 'assistant');
                     }
                 });
+            } else if (data.type === 'delete_expense') {
+                appendMessage(data.message, 'assistant');
+                
+                const wrapper = document.createElement('div');
+                wrapper.className = 'chat-message assistant';
+                
+                const card = document.createElement('div');
+                card.className = 'message-bubble confirmation-card';
+                card.innerHTML = `
+                    <strong>Delete Expense?</strong><br>
+                    Amount: €${parseFloat(data.data.amount).toFixed(2)}<br>
+                    Category: ${data.data.category}<br>
+                    Date: ${data.data.date}<br>
+                    Description: ${data.data.description}<br>
+                    <div style="margin-top: 12px; display: flex; gap: 8px;">
+                        <button class="btn btn-danger btn-sm confirm-delete-btn">Confirm Delete</button>
+                    </div>
+                `;
+                
+                wrapper.appendChild(card);
+                messagesContainer.appendChild(wrapper);
+                scrollToBottom();
+                
+                card.querySelector('.confirm-delete-btn').addEventListener('click', async (e) => {
+                    e.target.disabled = true;
+                    e.target.textContent = "Deleting...";
+                    
+                    try {
+                        const saveResponse = await fetch('/expenses/' + data.data.id + '/delete', {
+                            method: 'POST',
+                            headers: { 'X-CSRF-Token': csrfToken }
+                        });
+                        
+                        if (saveResponse.ok || saveResponse.redirected) {
+                            e.target.textContent = "Deleted!";
+                            appendMessage("I've deleted that expense for you.", 'assistant');
+                            setTimeout(() => window.location.reload(), 1500);
+                        } else {
+                            e.target.textContent = "Failed";
+                            appendMessage("There was an error deleting the expense.", 'assistant');
+                        }
+                    } catch (err) {
+                        e.target.textContent = "Error";
+                        appendMessage("Network error while deleting.", 'assistant');
+                    }
+                });
+            } else if (data.type === 'update_expense') {
+                appendMessage(data.message, 'assistant');
+                
+                const wrapper = document.createElement('div');
+                wrapper.className = 'chat-message assistant';
+                
+                const card = document.createElement('div');
+                card.className = 'message-bubble confirmation-card';
+                card.innerHTML = `
+                    <strong>Update Expense</strong><br>
+                    Amount: €${parseFloat(data.data.amount).toFixed(2)}<br>
+                    Category: ${data.data.category}<br>
+                    Date: ${data.data.date}<br>
+                    Description: ${data.data.description}<br>
+                    <div style="margin-top: 12px; display: flex; gap: 8px;">
+                        <button class="btn btn-primary btn-sm confirm-update-btn">Confirm Update</button>
+                    </div>
+                `;
+                
+                wrapper.appendChild(card);
+                messagesContainer.appendChild(wrapper);
+                scrollToBottom();
+                
+                card.querySelector('.confirm-update-btn').addEventListener('click', async (e) => {
+                    e.target.disabled = true;
+                    e.target.textContent = "Updating...";
+                    
+                    const formData = new FormData();
+                    formData.append('amount', data.data.amount);
+                    formData.append('category', data.data.category);
+                    formData.append('date', data.data.date);
+                    formData.append('description', data.data.description);
+                    
+                    try {
+                        const saveResponse = await fetch('/expenses/' + data.data.id + '/edit', {
+                            method: 'POST',
+                            headers: { 'X-CSRF-Token': csrfToken },
+                            body: formData
+                        });
+                        
+                        if (saveResponse.ok || saveResponse.redirected) {
+                            e.target.textContent = "Updated!";
+                            appendMessage("I've updated that expense for you.", 'assistant');
+                            setTimeout(() => window.location.reload(), 1500);
+                        } else {
+                            e.target.textContent = "Failed";
+                            appendMessage("There was an error updating the expense.", 'assistant');
+                        }
+                    } catch (err) {
+                        e.target.textContent = "Error";
+                        appendMessage("Network error while updating.", 'assistant');
+                    }
+                });
             }
             
         } catch (error) {

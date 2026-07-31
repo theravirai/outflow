@@ -2,7 +2,7 @@ import os
 import json
 from datetime import date
 from groq import Groq
-from database.queries import get_summary_stats, get_category_breakdown
+from database.queries import get_summary_stats, get_category_breakdown, get_recent_transactions
 
 def get_groq_client():
     api_key = os.environ.get("GROQ_API_KEY")
@@ -16,11 +16,13 @@ def detect_intent(user_input):
 You are the intent router for Outflow, a personal finance app.
 Classify the user's intent into EXACTLY ONE of the following categories:
 - add_expense: User wants to record a new expense or transaction.
+- update_expense: User wants to edit or update an existing expense.
+- delete_expense: User wants to delete or remove an existing expense.
 - dashboard_query: User is asking a question about their past spending, aggregates, categories, or trends.
 - navigation: User wants to navigate to a different page in the app (e.g. profile, add expense, home).
 - help: User is asking for help on how to use the app, categories, or demo mode, or general chat.
 
-Return ONLY a JSON object with a single key "intent" whose value is one of the four categories above.
+Return ONLY a JSON object with a single key "intent" whose value is one of the categories above.
 """
     response = client.chat.completions.create(
         model="llama-3.1-8b-instant",
@@ -167,11 +169,137 @@ App Knowledge:
         "message": response.choices[0].message.content
     }
 
+def handle_delete_expense(user_input, user_id):
+    recent = get_recent_transactions(user_id, limit=30)
+    
+    if not recent:
+        return {
+            "type": "chat",
+            "message": "You don't have any recent transactions to delete."
+        }
+        
+    transactions_text = "\n".join([
+        f"ID: {tx['id']} | Date: {tx['date']} | Desc: {tx['description']} | Cat: {tx['category']} | Amt: {tx['amount']}"
+        for tx in recent
+    ])
+    
+    client = get_groq_client()
+    system_prompt = f"""
+The user wants to delete a transaction.
+Here are the user's 30 most recent transactions:
+{transactions_text}
+
+Identify which transaction the user is referring to based on their input.
+Return ONLY a JSON object with:
+- "transaction_id": The ID integer of the matched transaction, or null if no match found.
+- "reason": A brief reason why you matched it, or why you couldn't find it.
+"""
+    response = client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_input}
+        ],
+        response_format={"type": "json_object"}
+    )
+    
+    data = json.loads(response.choices[0].message.content)
+    tx_id = data.get("transaction_id")
+    
+    if not tx_id:
+        return {
+            "type": "chat",
+            "message": "I couldn't confidently identify which transaction you want to delete. Could you be more specific?"
+        }
+        
+    matched_tx = next((tx for tx in recent if tx['id'] == tx_id), None)
+    if not matched_tx:
+        return {
+            "type": "chat",
+            "message": "I couldn't find a matching transaction."
+        }
+        
+    return {
+        "type": "delete_expense",
+        "data": matched_tx,
+        "message": "I found this transaction. Please confirm you want to delete it:"
+    }
+
+def handle_update_expense(user_input, user_id):
+    recent = get_recent_transactions(user_id, limit=30)
+    
+    if not recent:
+        return {
+            "type": "chat",
+            "message": "You don't have any recent transactions to update."
+        }
+        
+    transactions_text = "\n".join([
+        f"ID: {tx['id']} | Date: {tx['date']} | Desc: {tx['description']} | Cat: {tx['category']} | Amt: {tx['amount']}"
+        for tx in recent
+    ])
+    
+    client = get_groq_client()
+    system_prompt = f"""
+The user wants to update an existing transaction.
+Here are the user's 30 most recent transactions:
+{transactions_text}
+
+Identify which transaction the user is referring to, and what fields they want to change.
+Return ONLY a JSON object with:
+- "transaction_id": The ID integer of the matched transaction, or null if no match found.
+- "amount": The updated amount, or null if unchanged.
+- "category": The updated category (must be Food, Transport, Bills, Health, Healthcare, Travel, Entertainment, Shopping, or Other), or null if unchanged.
+- "date": The updated date (YYYY-MM-DD), or null if unchanged.
+- "description": The updated description, or null if unchanged.
+"""
+    response = client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_input}
+        ],
+        response_format={"type": "json_object"}
+    )
+    
+    data = json.loads(response.choices[0].message.content)
+    tx_id = data.get("transaction_id")
+    
+    if not tx_id:
+        return {
+            "type": "chat",
+            "message": "I couldn't confidently identify which transaction you want to update. Could you be more specific?"
+        }
+        
+    matched_tx = next((tx for tx in recent if tx['id'] == tx_id), None)
+    if not matched_tx:
+        return {
+            "type": "chat",
+            "message": "I couldn't find a matching transaction."
+        }
+        
+    # Merge updates
+    updated_tx = dict(matched_tx)
+    if data.get("amount") is not None: updated_tx["amount"] = data["amount"]
+    if data.get("category"): updated_tx["category"] = data["category"]
+    if data.get("date"): updated_tx["date"] = data["date"]
+    if data.get("description"): updated_tx["description"] = data["description"]
+    
+    return {
+        "type": "update_expense",
+        "data": updated_tx,
+        "message": "I've prepared the updates. Please review and confirm below:"
+    }
+
 def process_user_input(user_input, user_id):
     try:
         intent = detect_intent(user_input)
         if intent == "add_expense":
             return handle_add_expense(user_input)
+        elif intent == "update_expense":
+            return handle_update_expense(user_input, user_id)
+        elif intent == "delete_expense":
+            return handle_delete_expense(user_input, user_id)
         elif intent == "navigation":
             return handle_navigation(user_input)
         elif intent == "dashboard_query":

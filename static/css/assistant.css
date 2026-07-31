@@ -221,7 +221,7 @@
 }
 
 .chat-send-btn:hover:not(:disabled) {
-    background: var(--accent-hover);
+    opacity: 0.9;
 }
 
 .chat-send-btn:disabled {
