@@ -8,6 +8,8 @@ import logging
 import time
 from datetime import datetime, timedelta, date
 from werkzeug.security import generate_password_hash
+from alembic.config import Config
+from alembic import command
 
 import sys
 # Load environment variables from .env
@@ -29,38 +31,14 @@ class DatabaseConnectionError(Exception):
     pass
 
 def _init_db_internal(conn):
-    """Creates all tables using CREATE TABLE IF NOT EXISTS using the provided connection."""
-    with conn.cursor() as cur:
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
-                name TEXT NOT NULL,
-                email TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS expenses (
-                id SERIAL PRIMARY KEY,
-                user_id INTEGER NOT NULL,
-                amount DOUBLE PRECISION NOT NULL,
-                category TEXT NOT NULL,
-                date TEXT NOT NULL,
-                description TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-            )
-        """)
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS password_resets (
-                id SERIAL PRIMARY KEY,
-                user_id INTEGER NOT NULL,
-                token TEXT UNIQUE NOT NULL,
-                expires_at TIMESTAMP NOT NULL,
-                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-            )
-        """)
+    """Initializes the database schema using Alembic migrations."""
+    # Ensure alembic env.py can read the right URL (important for tests using DATABASE_URL_TEST)
+    if DATABASE_URL:
+        os.environ["DATABASE_URL"] = DATABASE_URL
+        
+    alembic_ini_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'alembic.ini')
+    alembic_cfg = Config(alembic_ini_path)
+    command.upgrade(alembic_cfg, "head")
 
 def _seed_db_internal(conn):
     """Inserts sample data for development using the provided connection."""
