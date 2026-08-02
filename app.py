@@ -1,7 +1,7 @@
 import os
 import secrets
 import psycopg2
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 import calendar
 import math
 from dotenv import load_dotenv
@@ -14,7 +14,7 @@ load_dotenv()
 from flask import Flask, abort, flash, redirect, render_template, request, session, url_for, jsonify
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from database.db import create_expense, create_user, convert_demo_user, get_user_by_email, get_expense_by_id, update_expense, delete_expense as db_delete_expense, cleanup_old_demo_users, create_demo_user, IS_TESTING, DatabaseConnectionError, update_user_profile, update_user_password, delete_user_account
+from database.db import create_expense, create_user, convert_demo_user, get_user_by_email, get_expense_by_id, update_expense, delete_expense as db_delete_expense, cleanup_old_demo_users, create_demo_user, IS_TESTING, DatabaseConnectionError, update_user_profile, update_user_password, delete_user_account, create_password_reset_token, get_password_reset_by_token, delete_password_reset_token
 from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_transaction_count, get_user_credentials
 from services.ai_assistant import process_user_input, process_guest_input
 from flask_limiter import Limiter
@@ -211,6 +211,7 @@ def demo_login():
 
 
 @app.route("/register", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
 def register():
     if session.get("user_id"):
         if not session.get("is_demo"):
@@ -259,6 +260,7 @@ def register():
 
 
 @app.route("/login", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
 def login():
     if session.get("user_id"):
         if session.get("is_demo"):
@@ -279,6 +281,54 @@ def login():
     session["user_name"] = user["name"]
     return redirect(url_for("profile"))
 
+
+@app.route("/forgot-password", methods=["GET", "POST"])
+@limiter.limit("5 per minute")
+def forgot_password():
+    if request.method == "GET":
+        return render_template("forgot_password.html")
+        
+    email = request.form.get("email", "").strip()
+    user = get_user_by_email(email)
+    
+    if user:
+        token = secrets.token_urlsafe(32)
+        expires_at = datetime.now() + timedelta(hours=1)
+        create_password_reset_token(user["id"], token, expires_at)
+        
+        reset_url = url_for("reset_password", token=token, _external=True)
+        # Mock sending email (in a real app, use smtplib or an email service here)
+        app.logger.info(f"PASSWORD RESET LINK FOR {email}: {reset_url}")
+        
+    # Always show same message to prevent email enumeration
+    flash("If an account exists with that email, a password reset link has been sent.")
+    return redirect(url_for("login"))
+
+@app.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    reset_record = get_password_reset_by_token(token)
+    
+    if not reset_record or reset_record["expires_at"] < datetime.now():
+        flash("The password reset link is invalid or has expired.", "error")
+        return redirect(url_for("forgot_password"))
+        
+    if request.method == "GET":
+        return render_template("reset_password.html", token=token)
+        
+    password = request.form.get("password", "")
+    confirm_password = request.form.get("confirm_password", "")
+    
+    if len(password) < 8:
+        return render_template("reset_password.html", token=token, error="Password must be at least 8 characters.")
+        
+    if password != confirm_password:
+        return render_template("reset_password.html", token=token, error="Passwords do not match.")
+        
+    update_user_password(reset_record["user_id"], generate_password_hash(password))
+    delete_password_reset_token(token)
+    
+    flash("Your password has been successfully reset. Please log in.", "success")
+    return redirect(url_for("login"))
 
 @app.route("/privacy")
 def privacy():

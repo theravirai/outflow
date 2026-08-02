@@ -49,7 +49,16 @@ def _init_db_internal(conn):
                 date TEXT NOT NULL,
                 description TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id)
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS password_resets (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                token TEXT UNIQUE NOT NULL,
+                expires_at TIMESTAMP NOT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
         """)
 
@@ -205,6 +214,39 @@ def update_user_password(user_id, password_hash):
                     "UPDATE users SET password_hash = %s WHERE id = %s",
                     (password_hash, user_id)
                 )
+    finally:
+        conn.close()
+
+def create_password_reset_token(user_id, token, expires_at):
+    """Creates a new password reset token, removing any existing ones for this user."""
+    conn = get_db()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM password_resets WHERE user_id = %s", (user_id,))
+                cur.execute(
+                    "INSERT INTO password_resets (user_id, token, expires_at) VALUES (%s, %s, %s)",
+                    (user_id, token, expires_at)
+                )
+    finally:
+        conn.close()
+
+def get_password_reset_by_token(token):
+    """Retrieves a password reset record by token."""
+    conn = get_db()
+    with conn.cursor() as cur:
+        cur.execute("SELECT * FROM password_resets WHERE token = %s", (token,))
+        row = cur.fetchone()
+    conn.close()
+    return row
+
+def delete_password_reset_token(token):
+    """Deletes a password reset token (e.g. after it is used)."""
+    conn = get_db()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM password_resets WHERE token = %s", (token,))
     finally:
         conn.close()
 
