@@ -64,7 +64,15 @@ def get_groq_client():
         raise ValueError("GROQ_API_KEY not configured")
     return Groq(api_key=api_key)
 
-def detect_intent(user_input):
+def _build_messages(system_prompt, history, user_input):
+    if history is None: history = []
+    messages = [{"role": "system", "content": system_prompt}]
+    for msg in history:
+        messages.append({"role": msg.get("role", "user"), "content": msg.get("content", "")})
+    messages.append({"role": "user", "content": user_input})
+    return messages
+
+def detect_intent(user_input, history=None):
     client = get_groq_client()
     system_prompt = """
 You are the intent router for Outflow, a personal finance app.
@@ -78,12 +86,10 @@ Classify the user's intent into EXACTLY ONE of the following categories:
 
 Return ONLY a JSON object with a single key "intent" whose value is one of the categories above.
 """
+    messages = _build_messages(system_prompt, history, user_input)
     response = client.chat.completions.create(
         model="llama-3.1-8b-instant",
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_input}
-        ],
+        messages=messages,
         response_format={"type": "json_object"}
     )
     
@@ -94,7 +100,7 @@ Return ONLY a JSON object with a single key "intent" whose value is one of the c
     except Exception:
         return "help"
 
-def handle_add_expense(user_input):
+def handle_add_expense(user_input, history=None):
     client = get_groq_client()
     today_date = date.today().isoformat()
     system_prompt = f"""
@@ -116,13 +122,10 @@ Important Rules:
 3. **CRITICAL:** Items like milk, groceries, coffee, restaurants, and eating out MUST be categorized as "Food".
 4. Capitalize the description like a sentence. Limit description to 1-3 words maximum (e.g. "Weekly groceries", "Train ticket", "Starbucks coffee").
 """
-    
+    messages = _build_messages(system_prompt, history, user_input)
     response = client.chat.completions.create(
         model="llama-3.1-8b-instant",
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_input}
-        ],
+        messages=messages,
         response_format={"type": "json_object"}
     )
     
@@ -146,7 +149,7 @@ Important Rules:
             "message": "I couldn't quite understand the expense details. Could you repeat the amount, category, and description clearly?"
         }
 
-def handle_navigation(user_input):
+def handle_navigation(user_input, history=None):
     client = get_groq_client()
     system_prompt = """
 You are a navigation router. Map the user's request to one of the following exact URLs:
@@ -157,12 +160,10 @@ You are a navigation router. Map the user's request to one of the following exac
 
 Return ONLY a JSON object with a single key "url" containing the mapped URL string.
 """
+    messages = _build_messages(system_prompt, history, user_input)
     response = client.chat.completions.create(
         model="llama-3.1-8b-instant",
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_input}
-        ],
+        messages=messages,
         response_format={"type": "json_object"}
     )
     try:
@@ -178,7 +179,7 @@ Return ONLY a JSON object with a single key "url" containing the mapped URL stri
         "message": "I'm redirecting you there now..."
     }
 
-def handle_dashboard_query(user_input, user_id):
+def handle_dashboard_query(user_input, user_id, history=None):
     summary = get_summary_stats(user_id)
     breakdown = get_category_breakdown(user_id)
     
@@ -200,19 +201,17 @@ Category Breakdown All Time:
     for item in breakdown:
         system_prompt += f"- {item['category']}: €{item['amount']:.2f}\n"
 
+    messages = _build_messages(system_prompt, history, user_input)
     response = client.chat.completions.create(
         model="llama-3.1-8b-instant",
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_input}
-        ]
+        messages=messages
     )
     return {
         "type": "chat",
         "message": response.choices[0].message.content
     }
 
-def handle_help(user_input):
+def handle_help(user_input, history=None):
     client = get_groq_client()
     system_prompt = """
 You are Outflow's helpful personal finance assistant. 
@@ -226,19 +225,17 @@ App Knowledge:
 - AI Assistant: You (the assistant) can add expenses automatically, answer questions about spending trends, and help navigate the app.
 - Outflow is a personal finance tracker built to be minimal, fast, and completely focused on privacy.
 """
+    messages = _build_messages(system_prompt, history, user_input)
     response = client.chat.completions.create(
         model="llama-3.1-8b-instant",
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_input}
-        ]
+        messages=messages
     )
     return {
         "type": "chat",
         "message": response.choices[0].message.content
     }
 
-def handle_delete_expense(user_input, user_id):
+def handle_delete_expense(user_input, user_id, history=None):
     recent = get_recent_transactions(user_id, limit=30)
     
     if not recent:
@@ -263,12 +260,10 @@ Return ONLY a JSON object with:
 - "transaction_id": The ID integer of the matched transaction, or null if no match found.
 - "reason": A brief reason why you matched it, or why you couldn't find it.
 """
+    messages = _build_messages(system_prompt, history, user_input)
     response = client.chat.completions.create(
         model="llama-3.1-8b-instant",
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_input}
-        ],
+        messages=messages,
         response_format={"type": "json_object"}
     )
     
@@ -301,7 +296,7 @@ Return ONLY a JSON object with:
         "message": "I found this transaction. Please confirm you want to delete it:"
     }
 
-def handle_update_expense(user_input, user_id):
+def handle_update_expense(user_input, user_id, history=None):
     recent = get_recent_transactions(user_id, limit=30)
     
     if not recent:
@@ -329,12 +324,10 @@ Return ONLY a JSON object with:
 - "date": The updated date (YYYY-MM-DD), or null if unchanged.
 - "description": The updated description, or null if unchanged.
 """
+    messages = _build_messages(system_prompt, history, user_input)
     response = client.chat.completions.create(
         model="llama-3.1-8b-instant",
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_input}
-        ],
+        messages=messages,
         response_format={"type": "json_object"}
     )
     
@@ -374,28 +367,28 @@ Return ONLY a JSON object with:
         "message": "I've prepared the updates. Please review and confirm below:"
     }
 
-def process_user_input(user_input, user_id):
+def process_user_input(user_input, user_id, history=None):
     try:
-        intent = detect_intent(user_input)
+        intent = detect_intent(user_input, history)
         if intent == "add_expense":
-            return handle_add_expense(user_input)
+            return handle_add_expense(user_input, history)
         elif intent == "update_expense":
-            return handle_update_expense(user_input, user_id)
+            return handle_update_expense(user_input, user_id, history)
         elif intent == "delete_expense":
-            return handle_delete_expense(user_input, user_id)
+            return handle_delete_expense(user_input, user_id, history)
         elif intent == "navigation":
-            return handle_navigation(user_input)
+            return handle_navigation(user_input, history)
         elif intent == "dashboard_query":
-            return handle_dashboard_query(user_input, user_id)
+            return handle_dashboard_query(user_input, user_id, history)
         else:
-            return handle_help(user_input)
+            return handle_help(user_input, history)
     except Exception as e:
         return {
             "type": "error",
             "message": "I'm unable to reach the AI service right now. Please try again in a moment."
         }
 
-def process_guest_input(user_input):
+def process_guest_input(user_input, history=None):
     client = get_groq_client()
     system_prompt = """
 You are the Guest AI for Outflow, a personal finance app. You are a product and technology expert.
@@ -414,13 +407,11 @@ App Knowledge:
 - Security: Password hashing, CSRF tokens, session-based auth.
 - Features: Expense tracking, charts, demo mode, voice input, AI assistant.
 """
+    messages = _build_messages(system_prompt, history, user_input)
     try:
         response = client.chat.completions.create(
             model="llama-3.1-8b-instant",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_input}
-            ]
+            messages=messages
         )
         return {
             "type": "chat",

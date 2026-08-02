@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isRecording = false;
     let mediaRecorder = null;
     let audioChunks = [];
+    let chatHistory = [];
 
     // --- Panel Toggle Logic ---
     const togglePanel = () => {
@@ -60,9 +61,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Chat History & State ---
     const loadHistory = () => {
-        const history = sessionStorage.getItem('outflow_ai_history');
-        if (history) {
-            messagesContainer.innerHTML = history;
+        const historyHTML = sessionStorage.getItem('outflow_ai_history');
+        const historyData = sessionStorage.getItem('outflow_ai_history_data');
+        if (historyHTML) {
+            messagesContainer.innerHTML = historyHTML;
+            if (historyData) {
+                try {
+                    chatHistory = JSON.parse(historyData);
+                } catch (e) {
+                    chatHistory = [];
+                }
+            }
             if (window.lucide) window.lucide.createIcons({ root: messagesContainer });
             scrollToBottom();
         } else {
@@ -74,6 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Don't save if there's a typing indicator
         if (!messagesContainer.querySelector('.typing-indicator')) {
             sessionStorage.setItem('outflow_ai_history', messagesContainer.innerHTML);
+            sessionStorage.setItem('outflow_ai_history_data', JSON.stringify(chatHistory));
         }
     };
 
@@ -140,6 +150,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const wrapper = document.createElement('div');
         wrapper.className = `chat-message ${sender}`;
         
+        chatHistory.push({ role: sender === 'user' ? 'user' : 'assistant', content: text });
+        if (chatHistory.length > 10) chatHistory = chatHistory.slice(-10);
+        
         const bubble = document.createElement('div');
         bubble.className = 'message-bubble';
         
@@ -198,6 +211,8 @@ document.addEventListener('DOMContentLoaded', () => {
         sendBtn.disabled = true;
         chatInput.disabled = true;
         
+        const historyToSend = chatHistory.slice(-6);
+        
         appendMessage(text, 'user');
         showTyping();
 
@@ -213,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     'Content-Type': 'application/json',
                     'X-CSRF-Token': csrfToken
                 },
-                body: JSON.stringify({ text })
+                body: JSON.stringify({ text, history: historyToSend })
             });
             if (response.status === 429) {
                 removeTyping();
@@ -278,6 +293,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (saveResponse.ok || saveResponse.redirected) {
                             e.target.textContent = "Saved!";
                             appendMessage("I've saved that expense for you.", 'assistant');
+                            setTimeout(() => window.location.reload(), 1500);
                         } else {
                             e.target.textContent = "Failed";
                             appendMessage("There was an error saving the expense.", 'assistant');

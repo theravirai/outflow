@@ -150,10 +150,12 @@ def ai_assistant_chat():
         return jsonify({"success": False, "error": "Missing input text"}), 400
         
     user_id = session.get("user_id")
+    history = data.get("history", [])
+    
     if not user_id:
-        response = process_guest_input(data["text"])
+        response = process_guest_input(data["text"], history)
     else:
-        response = process_user_input(data["text"], user_id)
+        response = process_user_input(data["text"], user_id, history)
     return jsonify(response)
 
 @app.route("/api/assistant/transcribe", methods=["POST"])
