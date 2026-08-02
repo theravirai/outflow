@@ -394,3 +394,40 @@ def process_user_input(user_input, user_id):
             "type": "error",
             "message": "I'm unable to reach the AI service right now. Please try again in a moment."
         }
+
+def process_guest_input(user_input):
+    client = get_groq_client()
+    system_prompt = """
+You are the Guest AI for Outflow, a personal finance app. You are a product and technology expert.
+Your goal is to answer questions from unauthenticated visitors about Outflow's features, architecture, security, and AI stack.
+
+Rules:
+- NEVER attempt database operations.
+- NEVER access or ask for personal financial data.
+- Refuse any request to add, edit, delete, or list expenses. Politely redirect the user to sign up or use Demo Mode.
+- Never leak internal secrets or API keys.
+- Be concise, helpful, and professional.
+
+App Knowledge:
+- Architecture: Flask backend, PostgreSQL database, Vanilla JS/CSS frontend.
+- AI Stack: Groq API with Llama 3.1 for intent parsing/chat, Whisper large v3 for voice transcription.
+- Security: Password hashing, CSRF tokens, session-based auth.
+- Features: Expense tracking, charts, demo mode, voice input, AI assistant.
+"""
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_input}
+            ]
+        )
+        return {
+            "type": "chat",
+            "message": response.choices[0].message.content
+        }
+    except Exception:
+        return {
+            "type": "error",
+            "message": "I'm unable to reach the AI service right now. Please try again in a moment."
+        }

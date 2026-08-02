@@ -25,6 +25,11 @@ document.addEventListener('DOMContentLoaded', () => {
             panel.setAttribute('aria-hidden', 'false');
             fab.classList.remove('pulse'); // Remove pulse permanently once opened
             localStorage.setItem('outflow_ai_visited', 'true');
+            if (!window.IS_AUTHENTICATED) {
+                chatInput.placeholder = "Ask a question about Outflow...";
+            } else {
+                chatInput.placeholder = "Ask a question or add an expense...";
+            }
             chatInput.focus();
             scrollToBottom();
         }
@@ -83,12 +88,27 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const renderSuggestions = () => {
-        const suggestions = [
+        if (!window.IS_AUTHENTICATED) {
+            const welcomeWrapper = document.createElement('div');
+            welcomeWrapper.className = 'chat-message assistant';
+            const welcomeBubble = document.createElement('div');
+            welcomeBubble.className = 'message-bubble';
+            welcomeBubble.textContent = "Hi. I'm the Outflow AI assistant. I can explain how the application works, its AI architecture, security, and features. To manage expenses or analyse spending, start Demo Mode or create an account.";
+            welcomeWrapper.appendChild(welcomeBubble);
+            messagesContainer.appendChild(welcomeWrapper);
+        }
+
+        const suggestions = window.IS_AUTHENTICATED ? [
             "Add €25 spent on groceries",
             "I paid rent today",
             "How much did I spend this month?",
             "What is my largest expense?",
             "Compare this month with last month"
+        ] : [
+            "How does Outflow work?",
+            "What can the AI assistant do?",
+            "Explain the architecture.",
+            "How is my data protected?"
         ];
         
         const container = document.createElement('div');
@@ -425,7 +445,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         chatInput.placeholder = "Ask a question...";
                     } finally {
                         chatInput.disabled = false;
-                        chatInput.placeholder = "Ask a question or add an expense...";
+                        chatInput.placeholder = window.IS_AUTHENTICATED ? "Ask a question or add an expense..." : "Ask a question about Outflow...";
                         stream.getTracks().forEach(track => track.stop());
                     }
                 });

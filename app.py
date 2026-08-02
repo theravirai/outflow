@@ -16,7 +16,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from database.db import create_expense, create_user, convert_demo_user, get_user_by_email, get_expense_by_id, update_expense, delete_expense as db_delete_expense, cleanup_old_demo_users, create_demo_user, IS_TESTING, DatabaseConnectionError
 from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_transaction_count
-from services.ai_assistant import process_user_input
+from services.ai_assistant import process_user_input, process_guest_input
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
@@ -145,24 +145,20 @@ def check_demo_expiry():
 @app.route("/api/assistant", methods=["POST"])
 @limiter.limit("20 per minute")
 def ai_assistant_chat():
-    user_id = session.get("user_id")
-    if not user_id:
-        return jsonify({"success": False, "error": "Unauthorized"}), 401
-    
     data = request.json
     if not data or not data.get("text"):
         return jsonify({"success": False, "error": "Missing input text"}), 400
         
-    response = process_user_input(data["text"], user_id)
+    user_id = session.get("user_id")
+    if not user_id:
+        response = process_guest_input(data["text"])
+    else:
+        response = process_user_input(data["text"], user_id)
     return jsonify(response)
 
 @app.route("/api/assistant/transcribe", methods=["POST"])
 @limiter.limit("20 per minute")
 def ai_assistant_transcribe():
-    user_id = session.get("user_id")
-    if not user_id:
-        return jsonify({"success": False, "error": "Unauthorized"}), 401
-
     if "audio" not in request.files:
         return jsonify({"success": False, "error": "No audio file provided"}), 400
 
