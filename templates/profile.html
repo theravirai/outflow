@@ -90,6 +90,10 @@
             <form method="GET" action="{{ url_for('profile') }}" class="filter-form">
                 <input type="hidden" name="preset" value="custom">
                 <div class="filter-group">
+                    <label for="q">Search</label>
+                    <input type="text" id="q" name="q" value="{{ search_query or '' }}" placeholder="Search description...">
+                </div>
+                <div class="filter-group">
                     <label for="start_date">Start Date</label>
                     <input type="date" id="start_date" name="start_date" value="{{ start_date or '' }}">
                 </div>
@@ -142,9 +146,14 @@
                     <i data-lucide="history" class="title-icon"></i>
                     Recent Expenses
                 </h3>
-                <a href="{{ url_for('add_expense') }}" class="btn-add-expense">
-                    <i data-lucide="plus"></i> Add Expense
-                </a>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end;">
+                    <a href="{{ url_for('export_expenses', start_date=start_date, end_date=end_date, category=category, q=search_query) }}" class="btn-add-expense" style="background: var(--paper-warm); color: var(--ink-soft); border: 1px solid var(--border);">
+                        <i data-lucide="download" style="color: inherit;"></i> Export CSV
+                    </a>
+                    <a href="{{ url_for('add_expense') }}" class="btn-add-expense">
+                        <i data-lucide="plus"></i> Add Expense
+                    </a>
+                </div>
             </div>
             <div class="table-responsive">
                 <table class="transactions-table">
@@ -198,7 +207,7 @@
                 <div class="pagination">
                     <!-- Prev -->
                     {% if page > 1 %}
-                    <a href="{{ url_for('profile', preset=preset, start_date=start_date, end_date=end_date, page=page-1) }}" class="btn-pagination" aria-label="Previous page">
+                    <a href="{{ url_for('profile', preset=preset, start_date=start_date, end_date=end_date, page=page-1, q=search_query) }}" class="btn-pagination" aria-label="Previous page">
                         <i data-lucide="chevron-left"></i>
                     </a>
                     {% else %}
@@ -213,14 +222,14 @@
                             {% elif p == page %}
                                 <span class="btn-pagination active">{{ p }}</span>
                             {% else %}
-                                <a href="{{ url_for('profile', preset=preset, start_date=start_date, end_date=end_date, page=p) }}" class="btn-pagination">{{ p }}</a>
+                                <a href="{{ url_for('profile', preset=preset, start_date=start_date, end_date=end_date, page=p, q=search_query) }}" class="btn-pagination">{{ p }}</a>
                             {% endif %}
                         {% endfor %}
                     </div>
                     
                     <!-- Next -->
                     {% if page < total_pages %}
-                    <a href="{{ url_for('profile', preset=preset, start_date=start_date, end_date=end_date, page=page+1) }}" class="btn-pagination" aria-label="Next page">
+                    <a href="{{ url_for('profile', preset=preset, start_date=start_date, end_date=end_date, page=page+1, q=search_query) }}" class="btn-pagination" aria-label="Next page">
                         <i data-lucide="chevron-right"></i>
                     </a>
                     {% else %}
@@ -230,6 +239,9 @@
 
                 <!-- Go To Page -->
                 <form method="GET" action="{{ url_for('profile') }}" class="pagination-goto">
+                    {% if search_query %}
+                    <input type="hidden" name="q" value="{{ search_query }}">
+                    {% endif %}
                     {% if preset %}
                     <input type="hidden" name="preset" value="{{ preset }}">
                     {% endif %}

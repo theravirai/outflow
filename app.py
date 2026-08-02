@@ -11,7 +11,9 @@ from groq import Groq
 # Load environment variables
 load_dotenv()
 
-from flask import Flask, abort, flash, redirect, render_template, request, session, url_for, jsonify
+import csv
+from io import StringIO
+from flask import Flask, abort, flash, redirect, render_template, request, session, url_for, jsonify, Response
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from database.db import create_expense, create_user, convert_demo_user, get_user_by_email, get_expense_by_id, update_expense, delete_expense as db_delete_expense, cleanup_old_demo_users, create_demo_user, IS_TESTING, DatabaseConnectionError, update_user_profile, update_user_password, delete_user_account, create_password_reset_token, get_password_reset_by_token, delete_password_reset_token
@@ -485,16 +487,19 @@ def profile():
     if category == "all":
         category = None
 
+    # Search Query
+    search_query = request.args.get("q", "").strip()
+
     user_info = get_user_by_id(user_id)
-    summary_stats = get_summary_stats(user_id, start_date=start_date_query, end_date=end_date_query)
+    summary_stats = get_summary_stats(user_id, start_date=start_date_query, end_date=end_date_query, search_query=search_query)
     
-    total_transactions = get_transaction_count(user_id, start_date=start_date_query, end_date=end_date_query, category=category)
+    total_transactions = get_transaction_count(user_id, start_date=start_date_query, end_date=end_date_query, category=category, search_query=search_query)
     total_pages = (total_transactions + per_page - 1) // per_page
     if total_pages == 0:
         total_pages = 1
         
-    recent_expenses = get_recent_transactions(user_id, limit=per_page, offset=offset, start_date=start_date_query, end_date=end_date_query, category=category)
-    category_breakdown = get_category_breakdown(user_id, start_date=start_date_query, end_date=end_date_query)
+    recent_expenses = get_recent_transactions(user_id, limit=per_page, offset=offset, start_date=start_date_query, end_date=end_date_query, category=category, search_query=search_query)
+    category_breakdown = get_category_breakdown(user_id, start_date=start_date_query, end_date=end_date_query, search_query=search_query)
 
     # Generate pagination pages (1 2 3 ... 15 16 17)
     def get_pagination_pages(current, total):
@@ -525,7 +530,8 @@ def profile():
         page=page,
         total_pages=total_pages,
         pagination_pages=pagination_pages,
-        category=category or "all"
+        category=category or "all",
+        search_query=search_query
     )
 
 
@@ -759,6 +765,68 @@ def delete_expense(id):
     flash("Expense deleted successfully!")
     return redirect(url_for("profile"))
 
+@app.route("/expenses/export")
+def export_expenses():
+    user_id = session.get("user_id")
+    if not user_id:
+        return redirect(url_for("login"))
+        
+    # Re-use the existing filters from the query string
+    start_date_str = request.args.get("start_date", "").strip()
+    end_date_str = request.args.get("end_date", "").strip()
+    category = request.args.get("category")
+    if category == "all":
+        category = None
+    search_query = request.args.get("q", "").strip()
+    
+    start_date = None
+    end_date = None
+    
+    if start_date_str:
+        try:
+            start_date = date.fromisoformat(start_date_str).isoformat()
+        except ValueError:
+            pass
+    if end_date_str:
+        try:
+            end_date = date.fromisoformat(end_date_str).isoformat()
+        except ValueError:
+            pass
+
+    # Get ALL matching expenses by passing limit=None
+    expenses = get_recent_transactions(
+        user_id, 
+        limit=None, 
+        start_date=start_date, 
+        end_date=end_date, 
+        category=category, 
+        search_query=search_query
+    )
+    
+    # Generate CSV
+    si = StringIO()
+    writer = csv.writer(si)
+    writer.writerow(["Date", "Description", "Category", "Amount"])
+    
+    for expense in expenses:
+        writer.writerow([
+            expense["date"],
+            expense["description"],
+            expense["category"],
+            f"{expense['amount']:.2f}"
+        ])
+        
+    output = si.getvalue()
+    
+    filename = "outflow_expenses.csv"
+    if start_date and end_date:
+        filename = f"outflow_expenses_{start_date}_to_{end_date}.csv"
+        
+    return Response(
+        output,
+        mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
 
 if __name__ == "__main__":
     flask_debug = os.environ.get("FLASK_DEBUG", "false").lower() in ("true", "1")

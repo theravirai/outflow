@@ -512,7 +512,8 @@
     letter-spacing: 0.05em;
 }
 
-.filter-group input[type="date"] {
+.filter-group input[type="date"],
+.filter-group input[type="text"] {
     padding: 0.5rem 0.75rem;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
@@ -525,7 +526,8 @@
     width: 100%;
 }
 
-.filter-group input[type="date"]:focus {
+.filter-group input[type="date"]:focus,
+.filter-group input[type="text"]:focus {
     border-color: var(--accent);
 }
 

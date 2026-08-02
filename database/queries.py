@@ -54,7 +54,7 @@ def get_user_credentials(user_id):
     finally:
         conn.close()
 
-def get_summary_stats(user_id, start_date=None, end_date=None):
+def get_summary_stats(user_id, start_date=None, end_date=None, search_query=None):
     """Returns a dict with total_spent, transaction_count, and top_category."""
     conn = get_db()
     try:
@@ -68,6 +68,9 @@ def get_summary_stats(user_id, start_date=None, end_date=None):
             if end_date:
                 query += " AND date <= %s"
                 params.append(end_date)
+            if search_query:
+                query += " AND description ILIKE %s"
+                params.append(f"%{search_query}%")
                 
             cur.execute(query, params)
             stats_row = cur.fetchone()
@@ -88,6 +91,9 @@ def get_summary_stats(user_id, start_date=None, end_date=None):
             if end_date:
                 top_cat_query += " AND date <= %s"
                 top_cat_params.append(end_date)
+            if search_query:
+                top_cat_query += " AND description ILIKE %s"
+                top_cat_params.append(f"%{search_query}%")
             top_cat_query += """
                 GROUP BY category
                 ORDER BY total_amount DESC, category ASC
@@ -107,7 +113,7 @@ def get_summary_stats(user_id, start_date=None, end_date=None):
     finally:
         conn.close()
 
-def get_transaction_count(user_id, start_date=None, end_date=None, category=None):
+def get_transaction_count(user_id, start_date=None, end_date=None, category=None, search_query=None):
     """Returns the total number of transactions matching the filters."""
     conn = get_db()
     try:
@@ -123,6 +129,9 @@ def get_transaction_count(user_id, start_date=None, end_date=None, category=None
             if category and category != 'all':
                 query += " AND category = %s"
                 params.append(category)
+            if search_query:
+                query += " AND description ILIKE %s"
+                params.append(f"%{search_query}%")
                 
             cur.execute(query, params)
             row = cur.fetchone()
@@ -130,7 +139,7 @@ def get_transaction_count(user_id, start_date=None, end_date=None, category=None
     finally:
         conn.close()
 
-def get_recent_transactions(user_id, limit=10, offset=0, start_date=None, end_date=None, category=None):
+def get_recent_transactions(user_id, limit=10, offset=0, start_date=None, end_date=None, category=None, search_query=None):
     """Returns a list of dicts, each with id, date, description, category, amount."""
     conn = get_db()
     try:
@@ -150,6 +159,9 @@ def get_recent_transactions(user_id, limit=10, offset=0, start_date=None, end_da
             if category and category != 'all':
                 query += " AND category = %s"
                 params.append(category)
+            if search_query:
+                query += " AND description ILIKE %s"
+                params.append(f"%{search_query}%")
             
             query += " ORDER BY date DESC, id DESC"
             if limit:
@@ -175,7 +187,7 @@ def get_recent_transactions(user_id, limit=10, offset=0, start_date=None, end_da
     finally:
         conn.close()
 
-def get_category_breakdown(user_id, start_date=None, end_date=None):
+def get_category_breakdown(user_id, start_date=None, end_date=None, search_query=None):
     """Returns a list of dicts, each with category, name, amount, percentage, pct, and class."""
     conn = get_db()
     try:
@@ -189,6 +201,9 @@ def get_category_breakdown(user_id, start_date=None, end_date=None):
             if end_date:
                 query_total += " AND date <= %s"
                 params_total.append(end_date)
+            if search_query:
+                query_total += " AND description ILIKE %s"
+                params_total.append(f"%{search_query}%")
                 
             cur.execute(query_total, params_total)
             total_row = cur.fetchone()
@@ -211,6 +226,9 @@ def get_category_breakdown(user_id, start_date=None, end_date=None):
             if end_date:
                 query_breakdown += " AND date <= %s"
                 params_breakdown.append(end_date)
+            if search_query:
+                query_breakdown += " AND description ILIKE %s"
+                params_breakdown.append(f"%{search_query}%")
             query_breakdown += """
                 GROUP BY category
                 ORDER BY total_amount DESC
