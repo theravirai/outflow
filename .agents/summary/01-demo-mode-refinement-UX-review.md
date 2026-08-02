@@ -1,6 +1,6 @@
 # Demo Mode Refinement & UX Review Summary
 
-This document summarizes the changes, architectural enhancements, and future recommendations for the Outflow portfolio project.
+This document summarizes the changes, architectural enhancements, and future recommendations for the Outflow core product.
 
 ## What Changed
 
@@ -39,7 +39,7 @@ This document summarizes the changes, architectural enhancements, and future rec
 
 ---
 
-## Recommendations for CV/Portfolio Polish
+## Recommendations for Production Launch Polish
 
 1. **Auto-Cleanup Cron Task**:
    - While the current cleanup runs on a throttled 1-hour basis during demo logins, a real production system could trigger a system cron job (e.g., via celery, rq, or systemd timer) calling `cleanup_old_demo_users()` out-of-band to guarantee zero performance overhead during visitor login.
