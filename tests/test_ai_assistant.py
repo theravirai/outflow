@@ -116,11 +116,13 @@ def test_process_user_input_error(mock_detect_intent):
     assert response["type"] == "error"
     assert "unable to reach the AI service" in response["message"]
 
-def test_api_assistant_unauthorized():
+@patch('app.process_guest_input')
+def test_api_assistant_guest(mock_process_guest):
+    mock_process_guest.return_value = {"type": "chat", "message": "I am a guest AI."}
     with app.test_client() as client:
         response = client.post('/api/assistant', json={"text": "hello"})
-        assert response.status_code == 401
-        assert not response.json["success"]
+        assert response.status_code == 200
+        assert response.json["type"] == "chat"
 
 @patch('app.process_user_input')
 def test_api_assistant_authorized(mock_process):

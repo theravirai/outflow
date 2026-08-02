@@ -23,7 +23,8 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
 app = Flask(__name__)
-
+app.config["TESTING"] = IS_TESTING
+app.config["RATELIMIT_ENABLED"] = not IS_TESTING
 limiter = Limiter(
     get_remote_address,
     app=app,
