@@ -46,7 +46,7 @@ outflow/
 - **PostgreSQL only** — database connection via environment variables `DATABASE_URL` (app) and `DATABASE_URL_TEST` (pytest), no SQLAlchemy ORM
 - **Vanilla JS only** — no React, no jQuery, no npm packages
 - **No new pip packages** — work within `requirements.txt` as-is (which includes psycopg2-binary and python-dotenv)
-- Python 3.10+ assumed — f-strings and `match` statements are fine
+- Python 3.13+ assumed — f-strings and `match` statements are fine
 
 
 ---

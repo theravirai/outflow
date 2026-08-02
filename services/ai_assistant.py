@@ -2,18 +2,32 @@ import os
 import json
 from datetime import date
 from groq import Groq
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, Field, field_validator
 from typing import Optional
+from datetime import datetime, date, timedelta
 from database.queries import get_summary_stats, get_category_breakdown, get_recent_transactions
 
 class IntentResponse(BaseModel):
     intent: str
 
 class AddExpenseResponse(BaseModel):
-    amount: float
+    amount: float = Field(..., gt=0, le=100000)
     category: str
     date: str
-    description: str
+    description: str = Field(..., max_length=50)
+
+    @field_validator('date')
+    @classmethod
+    def validate_date(cls, v):
+        try:
+            d = datetime.strptime(v, "%Y-%m-%d").date()
+            if d < date(2000, 1, 1):
+                raise ValueError("Date is too far in the past")
+            if d > date.today() + timedelta(days=30):
+                raise ValueError("Date is too far in the future")
+        except ValueError:
+            raise ValueError("Invalid date format or bounds")
+        return v
 
 class NavigationResponse(BaseModel):
     url: str
@@ -24,10 +38,25 @@ class DeleteExpenseResponse(BaseModel):
 
 class UpdateExpenseResponse(BaseModel):
     transaction_id: Optional[int] = None
-    amount: Optional[float] = None
+    amount: Optional[float] = Field(None, gt=0, le=100000)
     category: Optional[str] = None
     date: Optional[str] = None
-    description: Optional[str] = None
+    description: Optional[str] = Field(None, max_length=50)
+
+    @field_validator('date')
+    @classmethod
+    def validate_date(cls, v):
+        if v is None:
+            return v
+        try:
+            d = datetime.strptime(v, "%Y-%m-%d").date()
+            if d < date(2000, 1, 1):
+                raise ValueError("Date is too far in the past")
+            if d > date.today() + timedelta(days=30):
+                raise ValueError("Date is too far in the future")
+        except ValueError:
+            raise ValueError("Invalid date format or bounds")
+        return v
 
 def get_groq_client():
     api_key = os.environ.get("GROQ_API_KEY")

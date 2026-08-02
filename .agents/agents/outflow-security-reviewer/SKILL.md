@@ -29,7 +29,7 @@ Quick facts to keep in mind while reviewing:
 - **DB**: SQLite with `PRAGMA foreign_keys = ON`
 - **Auth**: Session-based login using Flask sessions
 - **Port**: 5001
-- **Python 3.10+**
+- **Python 3.13+**
 
 ---
 

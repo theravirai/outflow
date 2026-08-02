@@ -26,7 +26,7 @@ Quick facts to keep in mind while reviewing:
 - **Templates**: Jinja2, extending `base.html`
 - **Frontend**: Vanilla JS only — no frameworks
 - **Port**: 5001
-- **Python 3.10+**
+- **Python 3.13+**
 
 ---
 
@@ -104,7 +104,7 @@ note them gently and move on:
 - **Inline `<style>` tags** in templates — better as 
   separate CSS, but not worth dwelling on.
 - **Modern Python features**: if the student wrote 
-  something verbose that a Python 3.10+ feature would 
+  something verbose that a Python 3.13+ feature would 
   simplify, mention it as a "did you know" rather than 
   a fix.
 
