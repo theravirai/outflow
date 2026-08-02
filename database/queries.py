@@ -1,4 +1,5 @@
 from datetime import datetime
+import hashlib
 from database.db import get_db
 
 def get_user_by_id(user_id):
@@ -28,12 +29,28 @@ def get_user_by_id(user_id):
         if not initials:
             initials = "?"
             
+        gravatar_hash = hashlib.md5(email.strip().lower().encode("utf-8")).hexdigest()
+        gravatar_url = f"https://www.gravatar.com/avatar/{gravatar_hash}?d=mp&s=150"
+            
         return {
+            "id": user_id,
             "name": name,
             "email": email,
             "member_since": member_since,
-            "initials": initials
+            "initials": initials,
+            "gravatar_url": gravatar_url
         }
+    finally:
+        conn.close()
+
+def get_user_credentials(user_id):
+    """Returns the password_hash for a user."""
+    conn = get_db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT password_hash FROM users WHERE id = %s", (user_id,))
+            row = cur.fetchone()
+            return row["password_hash"] if row else None
     finally:
         conn.close()
 

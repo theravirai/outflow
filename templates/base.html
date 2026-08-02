@@ -69,6 +69,7 @@
                             <i data-lucide="user" class="nav-user-icon"></i>
                             {{ session.get('user_name', 'User') }}
                         </a>
+                        <a href="{{ url_for('settings') }}">Settings</a>
                         <a href="{{ url_for('logout') }}">Sign out</a>
                     {% endif %}
                 {% else %}

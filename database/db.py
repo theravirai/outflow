@@ -182,6 +182,43 @@ def convert_demo_user(user_id, name, email, password_hash):
     finally:
         conn.close()
 
+def update_user_profile(user_id, name, email):
+    """Updates user's name and email."""
+    conn = get_db()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE users SET name = %s, email = %s WHERE id = %s",
+                    (name, email, user_id)
+                )
+    finally:
+        conn.close()
+
+def update_user_password(user_id, password_hash):
+    """Updates user's password."""
+    conn = get_db()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE users SET password_hash = %s WHERE id = %s",
+                    (password_hash, user_id)
+                )
+    finally:
+        conn.close()
+
+def delete_user_account(user_id):
+    """Deletes all user transactions and the user account."""
+    conn = get_db()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM expenses WHERE user_id = %s", (user_id,))
+                cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
+    finally:
+        conn.close()
+
 
 def create_expense(user_id, amount, category, date, description):
     """Inserts a new expense into the database and returns the new row ID."""

@@ -14,8 +14,8 @@ load_dotenv()
 from flask import Flask, abort, flash, redirect, render_template, request, session, url_for, jsonify
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from database.db import create_expense, create_user, convert_demo_user, get_user_by_email, get_expense_by_id, update_expense, delete_expense as db_delete_expense, cleanup_old_demo_users, create_demo_user, IS_TESTING, DatabaseConnectionError
-from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_transaction_count
+from database.db import create_expense, create_user, convert_demo_user, get_user_by_email, get_expense_by_id, update_expense, delete_expense as db_delete_expense, cleanup_old_demo_users, create_demo_user, IS_TESTING, DatabaseConnectionError, update_user_profile, update_user_password, delete_user_account
+from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_transaction_count, get_user_credentials
 from services.ai_assistant import process_user_input, process_guest_input
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -293,6 +293,74 @@ def terms():
 # ------------------------------------------------------------------ #
 # Placeholder routes#
 # ------------------------------------------------------------------ #
+# Settings Routes
+# ------------------------------------------------------------------ #
+
+@app.route("/settings", methods=["GET"])
+def settings():
+    user_id = session.get("user_id")
+    if not user_id:
+        return redirect(url_for("login"))
+    user_info = get_user_by_id(user_id)
+    return render_template("settings.html", user_info=user_info)
+
+@app.route("/settings/profile", methods=["POST"])
+def update_profile():
+    user_id = session.get("user_id")
+    if not user_id:
+        return redirect(url_for("login"))
+    name = request.form.get("name", "").strip()
+    email = request.form.get("email", "").strip()
+    
+    if not name or not email:
+        flash("Name and email are required.", "error")
+        return redirect(url_for("settings"))
+        
+    try:
+        update_user_profile(user_id, name, email)
+        flash("Profile updated successfully.", "success")
+        session["user_name"] = name
+    except psycopg2.IntegrityError:
+        flash("That email is already in use by another account.", "error")
+        
+    return redirect(url_for("settings"))
+
+@app.route("/settings/password", methods=["POST"])
+def update_password():
+    user_id = session.get("user_id")
+    if not user_id:
+        return redirect(url_for("login"))
+        
+    current_password = request.form.get("current_password", "")
+    new_password = request.form.get("new_password", "")
+    confirm_password = request.form.get("confirm_password", "")
+    
+    if new_password != confirm_password:
+        flash("New passwords do not match.", "error")
+        return redirect(url_for("settings"))
+        
+    if len(new_password) < 8:
+        flash("New password must be at least 8 characters.", "error")
+        return redirect(url_for("settings"))
+        
+    password_hash = get_user_credentials(user_id)
+    if not password_hash or not check_password_hash(password_hash, current_password):
+        flash("Incorrect current password.", "error")
+        return redirect(url_for("settings"))
+        
+    update_user_password(user_id, generate_password_hash(new_password))
+    flash("Password updated successfully.", "success")
+    return redirect(url_for("settings"))
+
+@app.route("/settings/delete", methods=["POST"])
+def delete_account():
+    user_id = session.get("user_id")
+    if not user_id:
+        return redirect(url_for("login"))
+        
+    delete_user_account(user_id)
+    session.clear()
+    return redirect(url_for("landing"))
 
 @app.route("/logout")
 def logout():

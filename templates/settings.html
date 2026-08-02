@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}Settings - Outflow{% endblock %}
+
+{% block content %}
+<div class="settings-container">
+    <div class="page-header">
+        <h1>Settings</h1>
+        <p class="subtitle">Manage your account and preferences.</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category if category != 'message' else 'info' }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="settings-grid">
+        <!-- Profile Form -->
+        <div class="card settings-card">
+            <h3>Profile</h3>
+            <p class="text-muted">Update your personal information.</p>
+            <div class="settings-profile-pic">
+                <div class="avatar-circle" style="width: 80px; height: 80px; font-size: 2rem; display: flex; align-items: center; justify-content: center; background-color: var(--accent-light); color: var(--accent); border-radius: 50%; font-weight: 600;">
+                    <span>{{ user_info.initials }}</span>
+                </div>
+            </div>
+            <form action="{{ url_for('update_profile') }}" method="POST">
+                {{ csrf_token_input()|safe }}
+                <div class="form-group">
+                    <label for="name">Name</label>
+                    <input type="text" id="name" name="name" class="form-input" value="{{ user_info.name }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email address</label>
+                    <input type="email" id="email" name="email" class="form-input" value="{{ user_info.email }}" required>
+                </div>
+                <button type="submit" class="btn-primary">Save Changes</button>
+            </form>
+        </div>
+
+        <!-- Password Form -->
+        <div class="card settings-card">
+            <h3>Security</h3>
+            <p class="text-muted">Update your password.</p>
+            <form action="{{ url_for('update_password') }}" method="POST">
+                {{ csrf_token_input()|safe }}
+                <div class="form-group">
+                    <label for="current_password">Current Password</label>
+                    <input type="password" id="current_password" name="current_password" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label for="new_password">New Password</label>
+                    <input type="password" id="new_password" name="new_password" class="form-input" required minlength="8">
+                </div>
+                <div class="form-group">
+                    <label for="confirm_password">Confirm New Password</label>
+                    <input type="password" id="confirm_password" name="confirm_password" class="form-input" required minlength="8">
+                </div>
+                <button type="submit" class="btn-primary">Update Password</button>
+            </form>
+        </div>
+
+        <!-- Danger Zone -->
+        <div class="card settings-card danger-zone">
+            <h3 class="text-danger">Danger Zone</h3>
+            <p class="text-muted">Once you delete your account, there is no going back. Please be certain.</p>
+            <form action="{{ url_for('delete_account') }}" method="POST" onsubmit="return confirm('Are you absolute sure you want to permanently delete your account and all financial data?');">
+                {{ csrf_token_input()|safe }}
+                <button type="submit" class="btn-danger outline">Delete Account</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.settings-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+}
+
+.page-header {
+    margin-bottom: 2rem;
+}
+
+.page-header h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+    color: var(--text-color);
+}
+
+.subtitle {
+    color: var(--text-muted);
+}
+
+.settings-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.settings-card {
+    background: var(--paper-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 2rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+.settings-card h3 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.text-muted {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+}
+
+.text-danger {
+    color: #e11d48;
+}
+
+.settings-profile-pic {
+    margin-bottom: 1.5rem;
+}
+
+.avatar-img {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--border-color);
+}
+
+.btn-danger.outline {
+    background: transparent;
+    color: var(--danger);
+    border: 1px solid var(--danger);
+}
+
+.btn-danger.outline:hover {
+    background: var(--danger-light);
+    color: var(--danger);
+    border-color: var(--danger-border);
+}
+
+.alert {
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    margin-bottom: 1.5rem;
+    font-size: 0.95rem;
+}
+
+.alert-success {
+    background-color: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+
+.alert-error {
+    background-color: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+</style>
+{% endblock %}

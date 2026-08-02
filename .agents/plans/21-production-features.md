@@ -2,6 +2,9 @@
 
 This document outlines the step-by-step implementation plan to transition Outflow from a functional prototype to a production-ready application. It introduces user lifecycle management, account security, core product expectations, and DevOps standards.
 
+> **Testing Requirement:** 
+> For every phase outlined below, automated test cases (using `pytest`) MUST be written and pass successfully before the phase can be considered complete. Manual testing is insufficient for production software.
+
 ## Phase 1: User Profile Management
 **Goal:** Allow authenticated users to manage their personal data, secure their account, and exercise their right to data deletion (GDPR).
 
@@ -52,9 +55,10 @@ This document outlines the step-by-step implementation plan to transition Outflo
 **Goal:** Standardize the deployment pipeline and database lifecycle.
 
 1. **Dockerization**
-   - Create a `Dockerfile` using a lightweight Python 3.13 image. Configure it to install dependencies from `requirements.txt` and run the app via Gunicorn (or Flask dev server for local).
+   - Create a `Dockerfile` using a lightweight Python 3.13 image. Configure it to install dependencies from `requirements.txt` and run the app via Gunicorn (which is already included in your `requirements.txt`).
    - Create a `docker-compose.yml` defining two services: the `web` application and a `db` PostgreSQL instance.
 
-2. **Database Migrations**
-   - Since third-party packages like Alembic are restricted, build a lightweight `migrate.py` script.
-   - This script will read versioned `.sql` files from a `migrations/` folder and execute them sequentially to manage schema changes (like adding the `password_resets` table) without data loss.
+2. **Database Migrations (Alembic)**
+   - Install `alembic` (and `sqlalchemy` as its underlying dependency) to manage database schema changes safely.
+   - Initialize an Alembic migrations environment.
+   - Use Alembic to generate and run migration scripts (e.g., for creating the `password_resets` or `categories` tables) to ensure data is never lost during upgrades, matching industry standard workflows.
