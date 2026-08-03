@@ -1,125 +1,139 @@
 # Outflow
 
-![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)
-![Flask](https://img.shields.io/badge/Flask-3.1-black?logo=flask)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791?logo=postgresql&logoColor=white)
-![Vanilla JS](https://img.shields.io/badge/Vanilla_JS-ES6+-F7DF1E?logo=javascript&logoColor=black)
-![AI Powered](https://img.shields.io/badge/AI_Powered-Groq_Llama_3-FF4F00?logo=meta)
+[![Python](https://img.shields.io/badge/Python-3.13+-blue.svg?style=flat-square&logo=python&logoColor=white)](https://www.python.org)
+[![Flask](https://img.shields.io/badge/Flask-3.1-black?style=flat-square&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
+[![Gunicorn](https://img.shields.io/badge/Gunicorn-499848?style=flat-square&logo=gunicorn&logoColor=white)](https://gunicorn.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Neon](https://img.shields.io/badge/Neon_Postgres-00E599?style=flat-square&logo=neon&logoColor=black)](https://neon.tech)
+[![Alembic](https://img.shields.io/badge/Alembic-Migrations-orange?style=flat-square)](https://alembic.sqlalchemy.org/)
+[![Pydantic](https://img.shields.io/badge/Pydantic-E92063?style=flat-square&logo=pydantic&logoColor=white)](https://docs.pydantic.dev/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
+[![Azure](https://img.shields.io/badge/Microsoft_Azure-0089D6?style=flat-square&logo=microsoft-azure&logoColor=white)](https://azure.microsoft.com/)
+[![CI](https://github.com/theravirai/outflow/actions/workflows/ci-cd.yml/badge.svg?style=flat-square)](https://github.com/theravirai/outflow/actions/workflows/ci-cd.yml)
 
-Track expenses, understand spending habits, and visualize where your money goes. Outflow is a lightweight personal expense tracker designed for simplicity, speed, and privacy. It is powered by a Flask backend, a PostgreSQL database, and features a blazing-fast conversational AI assistant built on Groq's LPU architecture.
+Outflow is a lightweight personal expense tracker built with Flask and PostgreSQL. It features a conversational AI assistant for logging expenses, navigating the application, and querying financial statistics using natural language and voice input.
 
-## Quick Start
+**[🌐 View Live Demo](https://outflow-v2-bffjfwe5augzg2ae.switzerlandnorth-01.azurewebsites.net/)**
 
-```bash
-git clone https://github.com/theravirai/outflow.git
-cd outflow
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env      # Configure DATABASE_URL and GROQ_API_KEY
-python app.py
-```
+## Table of Contents
+- [Features](#features)
+- [Technology Stack](#technology-stack)
+- [Architecture](#architecture)
+- [Project Structure](#project-structure)
+- [Installation & Setup](#installation--setup)
+- [Testing](#testing)
+- [Deployment](#deployment)
 
 ---
 
 ## Features
 
-- **AI Assistant:** A conversational AI assistant that can log expenses, update entries, delete transactions, and answer questions about your spending in natural language.
-- **Voice-to-Text Input:** Seamlessly record audio using the browser's MediaRecorder API and transcribe it using Whisper (`whisper-large-v3`) to log expenses hands-free.
-- **AI Guardrails:** Strict safety bounds enforce rate limits (20 requests/minute), schema validation via Pydantic, and a non-negotiable "Human-in-the-Loop" confirmation flow to protect database integrity.
-- **Expense Tracking:** Log expenditures with fields for amount, category, date, and description.
-- **Dynamic Date Filtering:** Filter transaction history using quick presets (7 Days, 30 Days, This Month, All Time) or custom date ranges.
-- **Financial Dashboard:** View high-level metrics including total spending, total transactions, and the primary category driving expenditure.
-- **Responsive Interface:** A clean mobile-responsive layout styled entirely with modular, custom CSS (no heavy frameworks like Tailwind or Bootstrap).
-- **Demo Mode:** One-click preview environment populated with realistic multi-month mock data. When you sign up, your demo data seamlessly transitions to your real account.
-- **Secure Authentication:** User sign-up and login powered by secure session management, salted password hashing, and global CSRF token interception.
-- **Dark Mode:** High-fidelity toggleable dark theme with system preference auto-detection and persistent state.
+- **AI Assistant:** A conversational assistant that categorizes expenses, updates entries, deletes transactions, and answers spending queries.
+- **Voice-to-Text Input:** Records audio via the browser's MediaRecorder API and transcribes it using Whisper.
+- **Expense Tracking:** Logs expenditures with fields for amount, category, date, and description.
+- **Dynamic Date Filtering:** Filters transaction history using presets (7 Days, 30 Days, This Month, All Time) or custom date ranges.
+- **Financial Dashboard:** Displays total spending, total transactions, and the primary category driving expenditure.
+- **Demo Mode:** A sandbox environment populated with realistic mock data. Demo data seamlessly transitions to a real account upon registration.
+- **Secure Authentication:** User sign-up, login, and password recovery via secure sessions, salted password hashing, and global CSRF token interception.
+- **Dark Mode:** Toggleable dark theme with system preference auto-detection.
 
 ---
 
-## Tech Stack
+## Architecture Overview
 
-### Frontend
-- **HTML5 & Jinja2:** Server-side template rendering with full layout inheritance.
-- **Vanilla CSS:** Custom token-based design system (`style.css`) ensuring extreme performance and cohesive "fintech" aesthetic.
-- **Vanilla JavaScript:** AJAX category filtering, persistent theme toggling, and complex DOM state management for the AI Chat panel.
+Outflow follows a clean, monolithic client-server architecture designed for rapid Server-Side Rendering (SSR) without the overhead of heavy JavaScript build pipelines.
 
-### Backend & API
-- **Python:** Core programming language.
-- **Flask:** WSGI web application framework facilitating routing, request lifecycle handling, and session management.
-- **Flask-Limiter:** In-memory rate limiting to protect AI endpoints from abuse.
-
-### AI & NLP Pipeline
-- **Groq API:** Ultra-low latency inference using `llama-3.1-8b-instant` for intent routing and `whisper-large-v3` for speech transcription.
-- **Pydantic:** Strict structural typing and bounds validation for LLM JSON outputs.
-
-### Database
-- **PostgreSQL:** Robust relational database accessed via `psycopg2`.
-- **Native SQL:** All queries are written in raw SQL using parameterized structures to prevent SQL injection (no ORM used).
+*   **Frontend (Vanilla SSR):** Pre-rendered HTML generated by Jinja2, utilizing vanilla CSS and lightweight Vanilla JavaScript for localized dynamic components (e.g., the AI Chat Panel and AJAX data filtering).
+*   **Backend (Flask & Gunicorn):** A single file routing monolithic Flask backend (`app.py`) handles all core logic, session security, and Jinja2 templating. In production on Azure, it is served concurrently via Gunicorn.
+*   **Database (Neon PostgreSQL):** All data is stored in a Neon Postgres database. Queries are securely executed using `psycopg2` parameterized raw SQL bypassing heavy ORMs for absolute query performance and transparency, while Alembic handles migrations.
+*   **AI Services (Groq & Whisper):** The backend decoupled service layer securely processes and forwards natural language to the Groq API (Llama 3.1) and audio to Whisper, translating conversational commands into structured JSON actions.
 
 ---
 
-## Installation
+## Technology Stack
+
+- **Backend:** Python, Flask, Gunicorn
+- **Database:** PostgreSQL, Alembic (migrations), psycopg2 (raw SQL queries)
+- **Frontend:** HTML5, Jinja2, Vanilla JavaScript, Vanilla CSS
+- **AI & NLP:** Groq API (`llama-3.1-8b-instant`), Whisper (`whisper-large-v3`), Pydantic
+- **Infrastructure & Deployment:** Docker, Microsoft Azure App Service, Azure Container Registry, GitHub Actions
+- **Testing:** Pytest
+
+---
+
+## Project Structure
+
+```text
+outflow/
+├── alembic/                # Database migration scripts
+├── database/               # Data access layer (connection pooling, SQL queries)
+├── docs/                   # Detailed engineering documentation
+├── services/               # Business logic (AI intent routing and parsing)
+├── static/                 # Frontend assets (Vanilla CSS and JavaScript)
+├── templates/              # Server-side rendered Jinja2 HTML templates
+├── tests/                  # Pytest unit and integration test suite
+├── .github/workflows/      # GitHub Actions CI/CD pipelines
+├── app.py                  # Core Flask application and routing
+├── docker-compose.yml      # Local container orchestration
+└── Dockerfile              # Production image definition
+```
+
+---
+
+## Installation & Setup
 
 ### Prerequisites
 - Python 3.13+
-- PostgreSQL instance (local server or hosted, e.g., Neon)
-- [Groq API Key](https://console.groq.com/) for the AI features
+- PostgreSQL
+- [Groq API Key](https://console.groq.com/)
 
-### Step-by-Step Setup
+### 1. Clone the repository
+```bash
+git clone https://github.com/theravirai/outflow.git
+cd outflow
+```
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/theravirai/outflow.git
-   cd outflow
-   ```
+### 2. Environment Setup
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
 
-2. **Create and activate a virtual environment:**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate
-   ```
+### 3. Configuration
+Copy the example environment file:
+```bash
+cp .env.example .env
+```
+Edit `.env` and set the required variables:
+- `DATABASE_URL`: Connection string for your local development database.
+- `DATABASE_URL_TEST`: Connection string for the isolated test database.
+- `GROQ_API_KEY`: API key for the AI assistant and voice transcription.
+- `SECRET_KEY`: Cryptographic key for Flask sessions.
 
-3. **Install the dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Configure Environment Variables:**
-   Copy `.env.example` to create a `.env` file:
-   ```bash
-   cp .env.example .env
-   ```
-   Open the `.env` file and set the required variables:
-   - `DATABASE_URL`: Your development PostgreSQL connection string.
-   - `DATABASE_URL_TEST`: A separate test PostgreSQL database (mandatory for running tests).
-   - `GROQ_API_KEY`: Your Groq API key to power the AI Assistant.
-
-5. **Verify the installation by running the test suite:**
-   > [!IMPORTANT]
-   > The test suite requires `DATABASE_URL_TEST` to be set. Running the tests will automatically truncate and re-seed the test database in an isolated sandbox.
-   ```bash
-   pytest
-   ```
-
-6. **Start the local development server:**
-   ```bash
-   python app.py
-   ```
-   *Note: The application runs on port 5001.* Open [http://localhost:5001](http://localhost:5001) in your browser.
+### 4. Run the Application
+```bash
+python app.py
+```
+The application will be available at `http://localhost:5001`.
 
 ---
 
-## Environment Variables
+## Testing
 
-Configure the following settings in your `.env` file:
+The test suite runs against an isolated PostgreSQL sandbox database specified by `DATABASE_URL_TEST`. It automatically handles test schema creation and rollback.
 
-| Variable | Description | Required | Default |
-|---|---|---|---|
-| `DATABASE_URL` | Connection string for the PostgreSQL application database. | Yes | `postgresql://postgres:postgres@localhost:5432/outflow` |
-| `DATABASE_URL_TEST` | Connection string for the PostgreSQL test database (wiped and seeded on test runs). | Yes | `postgresql://postgres:postgres@localhost:5432/outflow_test` |
-| `SECRET_KEY` | Used by Flask to cryptographically sign session cookies and CSRF tokens. | Yes | (Auto-generated in example) |
-| `GROQ_API_KEY` | Powers the LLM Intent Router and Whisper voice transcription. | Yes | None |
-| `FLASK_DEBUG` | Controls the interactive debugger execution behavior. | No | `False` |
+Run all tests:
+```bash
+pytest
+```
 
 ---
+
+## Deployment
+
+Outflow is deployed as a Docker container to Microsoft Azure App Service, backed by a Neon PostgreSQL database.
+
+A GitHub Actions CI/CD pipeline (`.github/workflows/ci-cd.yml`) automates building the AMD64 Docker image, tagging it with the commit SHA, pushing it to an Azure Container Registry, and restarting the Web App.
+
+For comprehensive deployment instructions, including Gunicorn worker configuration and Azure Managed Identity setup, read the [Deployment Architecture Guide](docs/10-deployment.md).
