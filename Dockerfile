@@ -18,4 +18,4 @@ ENV PYTHONUNBUFFERED=1
 EXPOSE 5001
 
 # We use gunicorn as specified in the plan
-CMD ["gunicorn", "--bind", "0.0.0.0:5001", "app:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "2", "--threads", "4", "app:app"]
