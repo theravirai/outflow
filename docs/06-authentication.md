@@ -25,3 +25,9 @@ To reduce onboarding friction, Outflow allows users to try the full application 
     3. The Flask session is tagged with `user_id = ghost_id` and a cookie `was_demo = True`.
 *   **Seamless Conversion:** If the user enjoys the app and clicks "Sign Up", they are routed to registration. Upon successful registration, `convert_demo_user()` swaps the ghost email for the real email and applies the new password hash. **All of their demo data instantly becomes their real data.**
 *   **Garbage Collection:** Ghost accounts that are abandoned are swept from the database periodically via `cleanup_old_demo_users()`, ensuring the database doesn't bloat with dead records.
+
+## 4. Password Recovery
+Users who forget their password can reset it via the `/forgot-password` and `/reset-password/<token>` routes.
+*   **Implementation:** When a user requests a reset, the system generates a cryptographically secure, URL-safe 32-byte token (`secrets.token_urlsafe(32)`).
+*   **Expiration:** Tokens are stored in the `password_resets` table with a strict 1-hour expiration timestamp.
+*   **Security:** To prevent email enumeration attacks, the system always returns the exact same "success" message ("If an account exists... a link has been sent") whether the email exists in the database or not. Tokens are automatically deleted upon successful password reset.

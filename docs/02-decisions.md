@@ -17,7 +17,7 @@ While FastAPI is the modern standard for API development in Python (offering spe
 ## 3. Why Raw SQL instead of SQLAlchemy (ORM)?
 The `database/` layer exclusively uses `psycopg2` with raw parameterized SQL queries rather than an Object-Relational Mapper (ORM) like SQLAlchemy.
 *   **Why:** Performance and transparency. We wanted absolute control over how transactions are queried and filtered. By avoiding an ORM, we bypassed the notorious "N+1 query problem" and prevented bloated abstraction layers.
-*   **Trade-off:** Queries are statically written as strings. This means we lack the Python-level type-checking and automated migrations (like Alembic) that an ORM ecosystem provides. Refactoring table schemas requires manual SQL updates.
+*   **Trade-off:** Queries are statically written as strings. This means we lack the Python-level type-checking that an ORM ecosystem provides. However, we have integrated Alembic to manage and version our schema migrations independently of an ORM.
 
 ## 4. Why Server-Side Rendering (SSR)?
 Instead of building a React SPA (Single Page Application) that consumes a REST API, Outflow renders HTML directly on the server.

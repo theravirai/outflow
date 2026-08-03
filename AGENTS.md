@@ -1,6 +1,6 @@
 ## Project overview
 
-Outflow is a lightweight personal expense tracker built with Flask and SQLite.
+Outflow is a lightweight personal expense tracker built with Flask and PostgreSQL.
 
 ---
 
@@ -9,7 +9,7 @@ Outflow is a lightweight personal expense tracker built with Flask and SQLite.
 outflow/
 ├── app.py              # All routes — single file, no blueprints
 ├── database/
-│   └── db.py           # SQLite helpers: get_db(), init_db(), seed_db()
+│   └── db.py           # PostgreSQL helpers: get_db(), init_db(), seed_db()
 ├── templates/
 │   ├── base.html       # Shared layout — all templates must extend this
 │   └── *.html          # One template per page
@@ -83,24 +83,27 @@ pytest -s
 | `GET /` | Implemented — renders `landing.html` |
 | `GET /register` | Implemented — renders `register.html` |
 | `GET /login` | Implemented — renders `login.html` |
-| `GET /logout` | Stub — Step 3 |
-| `GET /profile` | Stub — Step 4 |
-| `GET /expenses/add` | Stub — Step 7 |
-| `GET /expenses/<id>/edit` | Stub — Step 8 |
-| `GET /expenses/<id>/delete` | Stub — Step 9 |
+| `GET /logout` | Implemented — redirects to `login.html` |
+| `GET /forgot-password` | Implemented — renders `forgot_password.html` |
+| `GET /reset-password/<token>` | Implemented — renders `reset_password.html` |
+| `GET /profile` | Implemented — renders `profile.html` |
+| `GET /settings` | Implemented — renders `settings.html` |
+| `GET /expenses/add` | Implemented — renders `add_expense.html` |
+| `GET /expenses/export` | Implemented — exports expenses to CSV |
+| `GET /expenses/<id>/edit` | Implemented — renders `edit_expense.html` |
+| `GET /expenses/<id>/delete` | Implemented — deletes expense |
 
-**Do not implement a stub route unless the active task explicitly targets that step.**
+**All core routes have been implemented.**
 
 ---
 
 ## Warnings and things to avoid
 
-- **Never use raw string returns for stub routes** once a step is implemented — always render a template
+- **Never use raw string returns for routes** — always render a template or return JSON
 - **Never hardcode URLs** in templates — always use `url_for()`
-- **Never put DB logic in route functions** — it belongs in `database/db.py`
+- **Never put DB logic in route functions** — it belongs in `database/db.py` or `database/queries.py`
 - **Never install new packages** mid-feature without flagging it — keep `requirements.txt` in sync
 - **Never use JS frameworks** — the frontend is intentionally vanilla
-- **`database/db.py` is currently empty** — do not assume helpers exist until the step that implements them
 - **FK enforcement is automatic** — PostgreSQL enforces foreign key constraints natively by default.
 
 - The app runs on **port 5001**, not the Flask default 5000 — don't change this

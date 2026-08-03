@@ -31,6 +31,14 @@ CREATE TABLE IF NOT EXISTS expenses (
     description TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS password_resets (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token TEXT UNIQUE NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 ```
 
 ### Key Design Decisions:
@@ -39,7 +47,7 @@ CREATE TABLE IF NOT EXISTS expenses (
 
 ## Security & Implementation Challenges
 *   **SQL Injection Prevention:** Every query in `queries.py` and `db.py` uses `psycopg2`'s parameter binding (`%s`). String interpolation (`f-strings`) is strictly forbidden for user inputs.
-*   **Migration Management:** Because we lack an ORM, we also lack tools like Alembic. Schema updates are currently applied manually or via `CREATE TABLE IF NOT EXISTS` blocks. This is a known limitation that will require a bespoke migration script as the app scales.
+*   **Migration Management:** Although we lack an ORM, we have successfully integrated **Alembic** to manage database schemas. Schema updates are no longer applied manually; instead, `_init_db_internal()` runs `alembic upgrade head` programmatically. New schemas are tracked in `alembic/versions/`.
 
 ## Possible Future Improvements
 *   **Connection Pooling:** Currently, connections are created relatively eagerly. Implementing `psycopg2.pool` would dramatically improve concurrent request throughput.
