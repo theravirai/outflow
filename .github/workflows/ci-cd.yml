@@ -54,12 +54,24 @@ jobs:
     if: github.ref == 'refs/heads/main'
 
     steps:
-      - name: Trigger Render Deploy Hook
-        env:
-          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Azure Container Registry
+        uses: azure/docker-login@v1
+        with:
+          login-server: ravirai.azurecr.io
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build and push Docker image
         run: |
-          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
-            # echo "RENDER_DEPLOY_HOOK_URL secret is not set. Skipping deployment means Failing deployment.."
-            exit 1
-          fi
-          curl -X POST "$RENDER_DEPLOY_HOOK_URL"
+          docker build -t ravirai.azurecr.io/outflow:latest .
+          docker push ravirai.azurecr.io/outflow:latest
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: 'outflow-v2'
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          images: 'ravirai.azurecr.io/outflow:latest'
