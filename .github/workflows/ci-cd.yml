@@ -1,13 +1,19 @@
 name: CI/CD Pipeline
 
 on:
-  #  push:
-  #    branches: [ main ]
-  #  pull_request:
-  #    branches: [ main ]
+  # To enable automatic deployments on every push to main, uncomment the lines below.
+  # push:
+  #   branches: [ main ]
+  
+  # Currently configured to run ONLY manually via the GitHub Actions "Run workflow" button
   workflow_dispatch:
 
 jobs:
+  # ---------------------------------------------------------
+  # JOB 1: TEST
+  # ---------------------------------------------------------
+  # This job provisions a temporary Ubuntu server, starts a local PostgreSQL 
+  # database, and runs our automated pytest suite to ensure no broken code is deployed.
   test:
     runs-on: ubuntu-latest
 
@@ -47,10 +53,17 @@ jobs:
         run: |
           python -m pytest
 
+  # ---------------------------------------------------------
+  # JOB 2: DEPLOY (AZURE)
+  # ---------------------------------------------------------
+  # This job ONLY runs if the 'test' job passes. It builds the Docker image,
+  # tags it for version control, pushes it to Azure Container Registry (ACR), 
+  # and commands the Azure Web App to restart.
   deploy:
     needs: test
     runs-on: ubuntu-latest
-    # if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    # Ensure deployment ONLY happens from the main branch
     if: github.ref == 'refs/heads/main'
 
     steps:
@@ -65,11 +78,19 @@ jobs:
           password: ${{ secrets.ACR_PASSWORD }}
 
       - name: Build and push Docker image
+        # We tag the image twice:
+        # 1. :latest -> tells Azure which image is the most recent.
+        # 2. :${{ github.sha }} -> creates an immutable historical backup of this exact commit.
+        # If the latest code breaks production, you can instantly rollback by opening the 
+        # Azure Portal and changing your Web App's container tag to the previous github.sha!
         run: |
-          docker build -t ravirai.azurecr.io/outflow:latest .
+          docker build -t ravirai.azurecr.io/outflow:latest -t ravirai.azurecr.io/outflow:${{ github.sha }} .
           docker push ravirai.azurecr.io/outflow:latest
+          docker push ravirai.azurecr.io/outflow:${{ github.sha }}
 
       - name: Deploy to Azure Web App
+        # This step uses the secure publish profile to ping the Web App and force it
+        # to pull the newly updated :latest tag from the container registry.
         uses: azure/webapps-deploy@v2
         with:
           app-name: 'outflow-v2'
