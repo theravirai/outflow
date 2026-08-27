@@ -1,11 +1,16 @@
 import os
 import json
+import logging
 from datetime import date
 from groq import Groq
 from pydantic import BaseModel, ValidationError, Field, field_validator
 from typing import Optional
 from datetime import datetime, date, timedelta
 from database.queries import get_summary_stats, get_category_breakdown, get_recent_transactions
+
+logger = logging.getLogger(__name__)
+
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "qwen/qwen3.8-27b")
 
 class IntentResponse(BaseModel):
     intent: str
@@ -88,7 +93,7 @@ Return ONLY a JSON object with a single key "intent" whose value is one of the c
 """
     messages = _build_messages(system_prompt, history, user_input)
     response = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
+        model=GROQ_MODEL,
         messages=messages,
         response_format={"type": "json_object"}
     )
@@ -124,7 +129,7 @@ Important Rules:
 """
     messages = _build_messages(system_prompt, history, user_input)
     response = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
+        model=GROQ_MODEL,
         messages=messages,
         response_format={"type": "json_object"}
     )
@@ -162,7 +167,7 @@ Return ONLY a JSON object with a single key "url" containing the mapped URL stri
 """
     messages = _build_messages(system_prompt, history, user_input)
     response = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
+        model=GROQ_MODEL,
         messages=messages,
         response_format={"type": "json_object"}
     )
@@ -203,7 +208,7 @@ Category Breakdown All Time:
 
     messages = _build_messages(system_prompt, history, user_input)
     response = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
+        model=GROQ_MODEL,
         messages=messages
     )
     return {
@@ -227,7 +232,7 @@ App Knowledge:
 """
     messages = _build_messages(system_prompt, history, user_input)
     response = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
+        model=GROQ_MODEL,
         messages=messages
     )
     return {
@@ -262,7 +267,7 @@ Return ONLY a JSON object with:
 """
     messages = _build_messages(system_prompt, history, user_input)
     response = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
+        model=GROQ_MODEL,
         messages=messages,
         response_format={"type": "json_object"}
     )
@@ -326,7 +331,7 @@ Return ONLY a JSON object with:
 """
     messages = _build_messages(system_prompt, history, user_input)
     response = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
+        model=GROQ_MODEL,
         messages=messages,
         response_format={"type": "json_object"}
     )
@@ -383,6 +388,7 @@ def process_user_input(user_input, user_id, history=None):
         else:
             return handle_help(user_input, history)
     except Exception as e:
+        logger.exception(f"Error processing user input: {e}")
         return {
             "type": "error",
             "message": "I'm unable to reach the AI service right now. Please try again in a moment."
@@ -403,21 +409,22 @@ Rules:
 
 App Knowledge:
 - Architecture: Flask backend, PostgreSQL database, Vanilla JS/CSS frontend.
-- AI Stack: Groq API with Llama 3.1 for intent parsing/chat, Whisper large v3 for voice transcription.
+- AI Stack: Groq API with Llama/Qwen for intent parsing/chat, Whisper large v3 for voice transcription.
 - Security: Password hashing, CSRF tokens, session-based auth.
 - Features: Expense tracking, charts, demo mode, voice input, AI assistant.
 """
     messages = _build_messages(system_prompt, history, user_input)
     try:
         response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+            model=GROQ_MODEL,
             messages=messages
         )
         return {
             "type": "chat",
             "message": response.choices[0].message.content
         }
-    except Exception:
+    except Exception as e:
+        logger.exception(f"Error processing guest input: {e}")
         return {
             "type": "error",
             "message": "I'm unable to reach the AI service right now. Please try again in a moment."

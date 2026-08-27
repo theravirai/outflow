@@ -9,6 +9,7 @@ services:
       - DATABASE_URL=postgresql://outflow_user:outflow_password@db:5432/outflow_db
       - SECRET_KEY=default-dev-secret-key-change-in-prod
       - GROQ_API_KEY=${GROQ_API_KEY}
+      - GROQ_MODEL=${GROQ_MODEL:-qwen/qwen3.8-27b}
     depends_on:
       db:
         condition: service_healthy

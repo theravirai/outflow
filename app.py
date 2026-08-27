@@ -18,7 +18,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from database.db import create_expense, create_user, convert_demo_user, get_user_by_email, get_expense_by_id, update_expense, delete_expense as db_delete_expense, cleanup_old_demo_users, create_demo_user, IS_TESTING, DatabaseConnectionError, update_user_profile, update_user_password, delete_user_account, create_password_reset_token, get_password_reset_by_token, delete_password_reset_token
 from database.queries import get_user_by_id, get_summary_stats, get_recent_transactions, get_category_breakdown, get_transaction_count, get_user_credentials
-from services.ai_assistant import process_user_input, process_guest_input
+from services.ai_assistant import process_user_input, process_guest_input, GROQ_MODEL
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
@@ -590,7 +590,7 @@ Rules:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": data.get("text")}
             ],
-            model="llama-3.1-8b-instant",
+            model=GROQ_MODEL,
             response_format={"type": "json_object"},
             temperature=0
         )
@@ -661,7 +661,7 @@ Rules:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": transcript_text}
             ],
-            model="llama-3.1-8b-instant",
+            model=GROQ_MODEL,
             response_format={"type": "json_object"},
             temperature=0
         )
