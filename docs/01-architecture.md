@@ -42,7 +42,7 @@ The backend serves as the orchestration layer.
 
 ### 3. Service Layer (AI Assistant)
 The `services/ai_assistant.py` module isolates external LLM logic from core application logic.
-*   **Integration:** It communicates securely with the Groq API using `llama-3.1-8b-instant`.
+*   **Integration:** It communicates securely with the Groq API using `qwen/qwen3.8-27b` (configurable via `GROQ_MODEL`).
 *   **Guardrails:** Pydantic is used to enforce strict schema boundaries. The backend isolates the LLM from the database entirely—the AI merely returns formatted JSON payloads which are then rendered as confirmation UI blocks to the user.
 
 ### 4. Database Layer

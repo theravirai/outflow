@@ -31,7 +31,7 @@ The entire AI interaction loop is decoupled from direct database mutation.
 
 ### 1. Intent Detection
 Before parsing complex entities, the system routes the query through an initial classification prompt (`detect_intent()`). 
-The LLM (`llama-3.1-8b-instant` via Groq) is forced to output a JSON object indicating exactly one intent (e.g., `add_expense`, `delete_expense`, `dashboard_query`, `navigation`, `help`). This strict routing isolates the logic and prevents prompt injection attacks from crossing context boundaries.
+The LLM (`qwen/qwen3.8-27b` via Groq) is forced to output a JSON object indicating exactly one intent (e.g., `add_expense`, `delete_expense`, `dashboard_query`, `navigation`, `help`). This strict routing isolates the logic and prevents prompt injection attacks from crossing context boundaries.
 
 ### 2. Context Injection & Prompt Construction
 Depending on the intent, the system fetches relevant database context before calling the LLM a second time.

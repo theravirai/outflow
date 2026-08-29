@@ -29,7 +29,7 @@ Instead of building a React SPA (Single Page Application) that consumes a REST A
 *   **Trade-off:** We have to manually write media queries, responsive grids, and cross-browser fixes that a mature framework would handle automatically.
 
 ## 6. Why Groq for the AI Assistant?
-*   **Why:** Groq provides ultra-low latency inference via their specialized LPU architecture. For a chat assistant, perceived latency is the most critical UX metric. By using `llama-3.1-8b-instant` on Groq, the AI feels instantaneous.
+*   **Why:** Groq provides ultra-low latency inference via their specialized LPU architecture. For a chat assistant, perceived latency is the most critical UX metric. By using high-speed models like `qwen/qwen3.8-27b` on Groq, the AI feels instantaneous.
 *   **Trade-off:** We are locked into the models supported by the Groq ecosystem, which may lag behind frontier models like GPT-4 or Claude 3.5 Sonnet.
 
 ## 7. Why the AI Never Writes Directly to the Database
