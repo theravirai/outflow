@@ -2,18 +2,24 @@
 
 [![Python](https://img.shields.io/badge/Python-3.13+-blue.svg?style=flat-square&logo=python&logoColor=white)](https://www.python.org)
 [![Flask](https://img.shields.io/badge/Flask-3.1-black?style=flat-square&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
-[![Gunicorn](https://img.shields.io/badge/Gunicorn-499848?style=flat-square&logo=gunicorn&logoColor=white)](https://gunicorn.org/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![Neon](https://img.shields.io/badge/Neon_Postgres-00E599?style=flat-square&logo=neon&logoColor=black)](https://neon.tech)
-[![Alembic](https://img.shields.io/badge/Alembic-Migrations-orange?style=flat-square)](https://alembic.sqlalchemy.org/)
+[![Groq](https://img.shields.io/badge/Groq-Fast_Inference-f55036?style=flat-square)](https://groq.com/)
+[![Whisper](https://img.shields.io/badge/Whisper-Voice_to_Text-00A67E?style=flat-square)](https://github.com/openai/whisper)
 [![Pydantic](https://img.shields.io/badge/Pydantic-E92063?style=flat-square&logo=pydantic&logoColor=white)](https://docs.pydantic.dev/)
+[![Neon](https://img.shields.io/badge/Neon_Postgres-00E599?style=flat-square&logo=neon&logoColor=black)](https://neon.tech)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Alembic](https://img.shields.io/badge/Alembic-Migrations-orange?style=flat-square)](https://alembic.sqlalchemy.org/)
+[![Gunicorn](https://img.shields.io/badge/Gunicorn-499848?style=flat-square&logo=gunicorn&logoColor=white)](https://gunicorn.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
 [![Azure](https://img.shields.io/badge/Microsoft_Azure-0089D6?style=flat-square&logo=microsoft-azure&logoColor=white)](https://azure.microsoft.com/)
 [![CI](https://github.com/theravirai/outflow/actions/workflows/ci-cd.yml/badge.svg?style=flat-square)](https://github.com/theravirai/outflow/actions/workflows/ci-cd.yml)
 
-Outflow is a lightweight personal expense tracker built with Flask and PostgreSQL. It features a conversational AI assistant for logging expenses, navigating the application, and querying financial statistics using natural language and voice input.
+Outflow is an AI-powered financial assistant and personal expense tracker. It combines low-latency open-source LLMs (`qwen/qwen3.8-27b` via Groq), Whisper voice transcription, and strict Pydantic schema validation with a robust PostgreSQL and Flask backend.
 
 **[🌐 View Live Demo](https://outflow-v2-bffjfwe5augzg2ae.switzerlandnorth-01.azurewebsites.net/)**
+
+<p align="center">
+  <img src="docs/assets/demo-ai-assistant.gif" alt="Outflow AI Assistant Demo" width="100%">
+</p>
 
 ## Table of Contents
 - [Features](#features)
@@ -30,6 +36,12 @@ Outflow is a lightweight personal expense tracker built with Flask and PostgreSQ
 
 - **AI Assistant:** A conversational assistant that categorizes expenses, updates entries, deletes transactions, and answers spending queries.
 - **Voice-to-Text Input:** Records audio via the browser's MediaRecorder API and transcribes it using Whisper.
+- **Conversational Context & State Updates:** Enables multi-turn corrections (e.g., *"Sorry, the expense was 18 euros, not 25"*) and direct financial queries (*"Show me recent transactions"*) without manual navigation.
+
+<p align="center">
+  <img src="docs/assets/demo-ai-update-query.gif" alt="Conversational Expense Correction and Query Demo" width="100%">
+</p>
+
 - **Expense Tracking:** Logs expenditures with fields for amount, category, date, and description.
 - **Dynamic Date Filtering:** Filters transaction history using presets (7 Days, 30 Days, This Month, All Time) or custom date ranges.
 - **Financial Dashboard:** Displays total spending, total transactions, and the primary category driving expenditure.
@@ -47,6 +59,32 @@ Outflow follows a clean, monolithic client-server architecture designed for rapi
 *   **Backend (Flask & Gunicorn):** A single file routing monolithic Flask backend (`app.py`) handles all core logic, session security, and Jinja2 templating. In production on Azure, it is served concurrently via Gunicorn.
 *   **Database (Neon PostgreSQL):** All data is stored in a Neon Postgres database. Queries are securely executed using `psycopg2` parameterized raw SQL bypassing heavy ORMs for absolute query performance and transparency, while Alembic handles migrations.
 *   **AI Services (Groq & Whisper):** The backend decoupled service layer securely processes and forwards natural language to the Groq API (`qwen/qwen3.8-27b` by default, configurable via `GROQ_MODEL`) and audio to Whisper (`whisper-large-v3`), translating conversational commands into structured JSON actions.
+
+### AI Assistant Pipeline & Guardrails
+
+The conversational layer is decoupled from direct database mutation. User inputs are categorized into strict intents, verified through context injection, and passed through Pydantic schemas before any state changes occur:
+
+```mermaid
+flowchart TD
+    A["User Input (Text or Voice Audio)"] --> B["Frontend AJAX / Whisper Transcribe"]
+    B --> C["Flask API Endpoint (/api/assistant)"]
+    C --> D["Intent Detection Router (Groq / Qwen 3.8-27B)"]
+    
+    D -->|Detect Intent| E{"Intent Category"}
+    E -->|add_expense| F["Direct Extraction"]
+    E -->|update / delete| G["Context Injection (Last 30 Transactions from DB)"]
+    E -->|dashboard_query| H["Context Injection (Aggregated Financial Stats)"]
+    
+    F --> I["LLM JSON Extraction (Groq API)"]
+    G --> I
+    H --> I
+    
+    I --> J["Pydantic Schema & Bounds Validation"]
+    J -->|Valid| K["Structured Action Payload to Frontend"]
+    J -->|Invalid / Error| L["Graceful Error / Clarification Card"]
+    K --> M["User Confirms Action in UI"]
+    M --> N[("Neon PostgreSQL Mutation")]
+```
 
 ---
 
