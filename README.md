@@ -10,12 +10,16 @@
 [![Alembic](https://img.shields.io/badge/Alembic-Migrations-orange?style=flat-square)](https://alembic.sqlalchemy.org/)
 [![Gunicorn](https://img.shields.io/badge/Gunicorn-499848?style=flat-square&logo=gunicorn&logoColor=white)](https://gunicorn.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
+[![Render](https://img.shields.io/badge/Render-Live_Demo-46E3B7?style=flat-square&logo=render&logoColor=white)](https://outflow.onrender.com/)
 [![Azure](https://img.shields.io/badge/Microsoft_Azure-0089D6?style=flat-square&logo=microsoft-azure&logoColor=white)](https://azure.microsoft.com/)
 [![CI](https://github.com/theravirai/outflow/actions/workflows/ci-cd.yml/badge.svg?style=flat-square)](https://github.com/theravirai/outflow/actions/workflows/ci-cd.yml)
 
 Outflow is an AI-powered financial assistant and personal expense tracker. It combines low-latency open-source LLMs (`qwen/qwen3.8-27b` via Groq), Whisper voice transcription, and strict Pydantic schema validation with a robust PostgreSQL and Flask backend.
 
-**[🌐 View Live Demo](https://outflow-v2-bffjfwe5augzg2ae.switzerlandnorth-01.azurewebsites.net/)**
+**[🌐 View Live Demo](https://outflow.onrender.com/)**
+
+> [!NOTE]
+> **Live Demo Availability:** The application is currently hosted on **Render** backed by a **Neon PostgreSQL** database. Because Render spins down free-tier instances after periods of inactivity, the **initial page load may take ~30–50 seconds to cold-start**. Once awake, subsequent requests run with normal low latency. *(The application was previously hosted on Microsoft Azure App Service & ACR, and was migrated to Render to maintain zero ongoing cloud costs).*
 
 <p align="center">
   <img src="docs/assets/demo-ai-assistant.gif" alt="Outflow AI Assistant Demo" width="100%">
@@ -24,7 +28,7 @@ Outflow is an AI-powered financial assistant and personal expense tracker. It co
 ## Table of Contents
 - [Features](#features)
 - [Technology Stack](#technology-stack)
-- [Architecture](#architecture)
+- [Architecture Overview](#architecture-overview)
 - [Project Structure](#project-structure)
 - [Installation & Setup](#installation--setup)
 - [Testing](#testing)
@@ -45,8 +49,9 @@ Outflow is an AI-powered financial assistant and personal expense tracker. It co
 - **Expense Tracking:** Logs expenditures with fields for amount, category, date, and description.
 - **Dynamic Date Filtering:** Filters transaction history using presets (7 Days, 30 Days, This Month, All Time) or custom date ranges.
 - **Financial Dashboard:** Displays total spending, total transactions, and the primary category driving expenditure.
+- **CSV Data Export:** One-click download of all user expense records formatted for external analysis.
 - **Demo Mode:** A sandbox environment populated with realistic mock data. Demo data seamlessly transitions to a real account upon registration.
-- **Secure Authentication:** User sign-up, login, and password recovery via secure sessions, salted password hashing, and global CSRF token interception.
+- **Security & Rate Limiting:** Endpoint protection via Flask-Limiter throttling (20 req/min on AI endpoints, 5 req/min on auth), CSRF token interception, and salted password hashing.
 - **Dark Mode:** Toggleable dark theme with system preference auto-detection.
 
 ---
@@ -94,7 +99,7 @@ flowchart TD
 - **Database:** PostgreSQL, Alembic (migrations), psycopg2 (raw SQL queries)
 - **Frontend:** HTML5, Jinja2, Vanilla JavaScript, Vanilla CSS
 - **AI & NLP:** Groq API (`qwen/qwen3.8-27b`), Whisper (`whisper-large-v3`), Pydantic
-- **Infrastructure & Deployment:** Docker, Microsoft Azure App Service, Azure Container Registry, GitHub Actions
+- **Infrastructure & Deployment:** Docker, Render, Neon PostgreSQL, Microsoft Azure (App Service & ACR), GitHub Actions CI/CD
 - **Testing:** Pytest
 
 ---
@@ -144,12 +149,19 @@ Copy the example environment file:
 cp .env.example .env
 ```
 Edit `.env` and set the required variables:
-- `DATABASE_URL`: Connection string for your local development database.
+- `DATABASE_URL`: Connection string for your development database (e.g. Neon or local PostgreSQL).
 - `DATABASE_URL_TEST`: Connection string for the isolated test database.
 - `GROQ_API_KEY`: API key for the AI assistant and voice transcription.
+- `GROQ_MODEL`: Model identifier on Groq (defaults to `qwen/qwen3.8-27b`).
 - `SECRET_KEY`: Cryptographic key for Flask sessions.
 
-### 4. Run the Application
+### 4. Database Migrations
+Apply the database schema using Alembic:
+```bash
+alembic upgrade head
+```
+
+### 5. Run the Application
 ```bash
 python app.py
 ```
@@ -170,8 +182,8 @@ pytest
 
 ## Deployment
 
-Outflow is deployed as a Docker container to Microsoft Azure App Service, backed by a Neon PostgreSQL database.
+Outflow is containerized with Docker and hosted on **Render** backed by a **Neon PostgreSQL** database.
 
-A GitHub Actions CI/CD pipeline (`.github/workflows/ci-cd.yml`) automates building the AMD64 Docker image, tagging it with the commit SHA, pushing it to an Azure Container Registry, and restarting the Web App.
+The repository also includes a production-ready GitHub Actions CI/CD pipeline (`.github/workflows/ci-cd.yml`) that was previously used for automated builds, tagging, and deployments to **Microsoft Azure App Service** via Azure Container Registry (ACR). The production hosting was migrated to Render to maintain a 100% free, zero-cost setup for public portfolio demonstration.
 
-For comprehensive deployment instructions, including Gunicorn worker configuration and Azure Managed Identity setup, read the [Deployment Architecture Guide](docs/10-deployment.md).
+For comprehensive architectural and container deployment instructions, read the [Deployment Architecture Guide](docs/10-deployment.md).
